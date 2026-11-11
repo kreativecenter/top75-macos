@@ -1,4 +1,3 @@
-import IOKit.hid
 import SwiftUI
 
 struct Entry: Identifiable, Hashable {
@@ -20,17 +19,17 @@ struct Entry: Identifiable, Hashable {
         Entry(title: "Tek renk ve efekt yönü", group: "Aydınlatma", shortcut: "Fn + PgUp / PgDn", detail: "PgUp tek renk moduna geçer. PgDn destekleyen efektlerde yönü değiştirir.", keywords: "rgb monochrome direction"),
         Entry(title: "Özel tuş aydınlatması", group: "Aydınlatma", shortcut: "Fn + U / I / O / P", detail: "Bir aydınlatma yuvası seç. Fn + ters eğik çizgi tuşuyla kaydı başlat, renkleri değiştirmek için ilgili tuşlara bas ve aynı kısayolla kaydet.", keywords: "rgb custom led per key profil"),
         Entry(title: "Klavye ekranını aç veya kapat", group: "Ekran", shortcut: "Fn + Caps Lock", detail: "Klavye üzerindeki renkli ekranı açar veya kapatır.", keywords: "lcd display screen"),
-        Entry(title: "Ekran görseli ve GIF", group: "Ekran", shortcut: "", detail: "Kılavuz, üretici yazılımıyla sabit görsel ve GIF yüklenebildiğini belirtiyor. Bu sürümde görsel yükleme yok.", keywords: "lcd animasyon resim display"),
+        Entry(title: "Ekran görseli ve GIF", group: "Ekran", shortcut: "", detail: "Ekran bölümünden PNG, JPEG veya GIF seçip klavyeye gönderebilirsin.", keywords: "lcd animasyon resim display"),
         Entry(title: "Pil ve şarj", group: "Sistem", shortcut: "", detail: "Pil simgesi kırmızıysa klavyeyi şarj et. Kablo bağlıyken ekrandaki pil animasyonu şarj durumunu gösterir.", keywords: "batarya battery charge")
     ]
 
-    static func search(_ query: String) -> [Entry] {
+    static func search(_ query: String, language: AppLanguage = AppLanguage(code: "tr")) -> [Entry] {
         let terms = normalized(query).split(whereSeparator: \.isWhitespace).map(String.init)
         guard !terms.isEmpty else { return catalog }
         let phrase = terms.joined(separator: " ")
         return catalog.enumerated().compactMap { index, entry -> (Int, Int, Entry)? in
-            let title = normalized(entry.title)
-            let body = normalized([entry.group, entry.shortcut, entry.detail, entry.keywords].joined(separator: " "))
+            let title = normalized(language(entry.title))
+            let body = normalized([language(entry.group), language(entry.shortcut), language(entry.detail), entry.keywords].joined(separator: " "))
             guard terms.allSatisfy({ title.contains($0) || body.contains($0) }) else { return nil }
             let titleMatches = terms.filter { title.contains($0) }.count
             let score = titleMatches * 10 + (title.hasPrefix(phrase) ? 5 : 0)
@@ -46,104 +45,84 @@ struct Entry: Identifiable, Hashable {
     }
 }
 
-struct ContentView: View {
+struct GuideView: View {
+    @Environment(\.appLanguage) private var l
+    let focusRequest: Int
     @State private var query = ""
     @State private var selection: Entry.ID?
-    @State private var device: String?
     @FocusState private var searchFocused: Bool
 
-    private var results: [Entry] { Entry.search(query) }
-    private var searching: Bool { !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    private var results: [Entry] { Entry.search(query, language: l) }
 
     var body: some View {
-        NavigationSplitView {
-            VStack(alignment: .leading, spacing: 10) {
-                TextField("İşlev veya kısayol ara", text: $query)
-                    .focused($searchFocused)
-                    .textFieldStyle(.roundedBorder)
-                    .padding(.horizontal, 12)
-                    .padding(.top, 12)
-                    .accessibilityLabel("İşlev veya kısayol ara")
+        VSplitView {
+            VStack(spacing: 0) {
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                    TextField(l("İşlev veya kısayol ara"), text: $query)
+                        .textFieldStyle(.plain)
+                        .focused($searchFocused)
+                    if !query.isEmpty {
+                        Button(l("Aramayı temizle"), systemImage: "xmark.circle.fill") { query = "" }
+                            .labelStyle(.iconOnly)
+                            .buttonStyle(.plain)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(10)
+                .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+                .padding(12)
                 List(selection: $selection) {
-                    if searching, let first = results.first {
-                        Section("En iyi eşleşme") { row(first) }
+                    if !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, let first = results.first {
+                        Section(l("En iyi eşleşme")) { row(first) }
                         if results.count > 1 {
-                            Section("Diğer sonuçlar") {
-                                ForEach(results.dropFirst()) { row($0) }
-                            }
+                            Section(l("Diğer sonuçlar")) { ForEach(results.dropFirst()) { row($0) } }
                         }
                     } else {
                         ForEach(results) { row($0) }
                     }
                 }
+                .listStyle(.inset)
                 .overlay {
-                    if results.isEmpty { ContentUnavailableView.search(text: query) }
+                    if results.isEmpty {
+                        ContentUnavailableView(l("Sonuç bulunamadı"), systemImage: "magnifyingglass")
+                    }
                 }
-                HStack {
-                    Text(device ?? "TOP75 algılanmadı")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Button("Yenile", systemImage: "arrow.clockwise") { refreshDevice() }
-                        .labelStyle(.iconOnly)
-                        .help("Bağlantıyı yeniden kontrol et")
-                }
-                .padding([.horizontal, .bottom], 12)
             }
-            .navigationSplitViewColumnWidth(min: 250, ideal: 290)
-        } detail: {
-            if let entry = results.first(where: { $0.id == selection }) ?? results.first {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text(entry.group).font(.subheadline).foregroundStyle(.secondary)
-                        Text(entry.title).font(.largeTitle.bold())
+            .frame(minHeight: 170, idealHeight: 260)
+            ScrollView {
+                if let entry = results.first(where: { $0.id == selection }) ?? results.first {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text(l(entry.title)).font(.title2.bold())
                         if !entry.shortcut.isEmpty {
-                            Text(entry.shortcut)
-                                .font(.system(.body, design: .monospaced))
-                                .padding(9)
-                                .background(.quaternary, in: RoundedRectangle(cornerRadius: 7))
+                            Text(l(entry.shortcut))
+                                .font(.system(.body, design: .monospaced).weight(.medium))
+                                .padding(.horizontal, 10).padding(.vertical, 6)
+                                .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
                         }
-                        Text(entry.detail).font(.body).textSelection(.enabled)
+                        Text(l(entry.detail)).foregroundStyle(.secondary).textSelection(.enabled)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(30)
+                    .padding(24)
                 }
-            } else {
-                ContentUnavailableView("Sonuç bulunamadı", systemImage: "magnifyingglass")
             }
+            .frame(minHeight: 150)
         }
-        .frame(minWidth: 650, minHeight: 420)
-        .background {
-            Button("Ara") { searchFocused = true }
-                .keyboardShortcut("f", modifiers: .command)
-                .opacity(0)
-                .accessibilityHidden(true)
-        }
-        .onChange(of: query) { selection = results.first?.id }
-        .onAppear {
-            selection = results.first?.id
-            refreshDevice()
-        }
+        .onChange(of: query, initial: true) { selection = results.first?.id }
+        .onChange(of: l) { selection = results.first?.id }
+        .onChange(of: focusRequest, initial: true) { if focusRequest > 0 { searchFocused = true } }
     }
 
     private func row(_ entry: Entry) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(entry.title)
-            Text(entry.shortcut.isEmpty ? entry.group : entry.shortcut)
+        HStack {
+            Text(l(entry.title))
+            Spacer()
+            Text(l(entry.shortcut.isEmpty ? entry.group : entry.shortcut))
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
-        .padding(.vertical, 3)
+        .padding(.vertical, 4)
         .tag(entry.id)
-    }
-
-    private func refreshDevice() {
-        let manager = IOHIDManagerCreate(kCFAllocatorDefault, IOOptionBits(kIOHIDOptionsTypeNone))
-        IOHIDManagerSetDeviceMatching(manager, [kIOHIDVendorIDKey: 0x3151] as CFDictionary)
-        let devices = IOHIDManagerCopyDevices(manager) as? Set<IOHIDDevice> ?? []
-        device = devices.compactMap { device in
-            IOHIDDeviceGetProperty(device, kIOHIDProductKey as CFString) as? String
-        }.sorted().first { $0.localizedCaseInsensitiveContains("TOP75") }
     }
 }
 
@@ -156,6 +135,13 @@ enum Launch {
             precondition(Entry.search("rgb parlaklik").first?.title == "Parlaklık")
             precondition(Entry.search("    ").count == Entry.catalog.count)
             precondition(Entry.search("bilinmeyen-terim").isEmpty)
+            let english = AppLanguage(code: "en")
+            let turkish = AppLanguage(code: "tr")
+            precondition(english("Aydınlatma") == "Lighting")
+            precondition(turkish("Aydınlatma") == "Aydınlatma")
+            precondition(english.format("Profil %@", "2") == "Profile 2")
+            precondition(Entry.search("brightness", language: english).first?.title == "Parlaklık")
+            precondition(Set(KeyboardLayout.selectableCodes).isSubset(of: Set(KeySettingsView.slots.keys)))
             let lighting = Lighting(effect: 1, speed: 2, brightness: 3, flags: 7, rgb: 0x10A0FF)
             let report = lighting.report
             precondition(report.count == 64 && report.prefix(9).reduce(UInt8(0), &+) == 0xFF)
@@ -171,7 +157,7 @@ enum Launch {
             precondition(decoded.strokes.count == 2 && decoded.strokes[1].delay == 250)
             let pixels = ScreenArtwork.rgb565 { x, y in x == 0 && y == 1 ? (255, 0, 0) : (0, 0, 255) }
             precondition(pixels.count == 32_768 && pixels.prefix(6) == [0, 31, 248, 0, 0, 31])
-            print("Search, HID packet, macro and RGB565 checks passed.")
+            print("Localization, search, keyboard layout, HID packet, macro and RGB565 checks passed.")
             return
         }
         TOP75App.main()
@@ -180,29 +166,25 @@ enum Launch {
 }
 
 struct TOP75App: App {
+    @AppStorage("interfaceLanguage") private var preference = LanguagePreference.system
+
     var body: some Scene {
-        WindowGroup("Darmoshark TOP75") {
-            TabView {
-                LightingView()
-                    .tabItem { Label("Aydınlatma", systemImage: "lightbulb") }
-                KeySettingsView()
-                    .tabItem { Label("Tuşlar ve profiller", systemImage: "keyboard") }
-                MacroView()
-                    .tabItem { Label("Makrolar", systemImage: "command") }
-                ScreenView()
-                    .tabItem { Label("Ekran", systemImage: "display") }
-                DeviceOptionsView()
-                    .tabItem { Label("Ayarlar", systemImage: "gearshape") }
-                ContentView()
-                    .tabItem { Label("Kılavuz", systemImage: "book") }
-            }
-            .frame(minWidth: 650, minHeight: 420)
+        WindowGroup("TOP75") {
+            WorkspaceView()
+                .environment(\.appLanguage, preference.language)
+                .environment(\.locale, Locale(identifier: preference.language.code))
         }
-            .defaultSize(width: 820, height: 540)
+        .defaultSize(width: 1060, height: 735)
+        Settings {
+            PreferencesView(preference: $preference)
+                .environment(\.appLanguage, preference.language)
+                .environment(\.locale, Locale(identifier: preference.language.code))
+        }
     }
 }
 
 struct LightingView: View {
+    @Environment(\.appLanguage) private var l
     private static let effects: [(UInt8, String)] = [
         (0, "Kapalı"), (1, "Sabit"), (2, "Nefes"), (3, "Spektrum"), (4, "Dalga"), (5, "Halka"),
         (6, "Yağmur damlası"), (7, "Yılan"), (8, "Tuşa basınca"), (9, "Birleşme"),
@@ -225,53 +207,56 @@ struct LightingView: View {
 
     var body: some View {
         Form {
-            Section("Klavye aydınlatması") {
-                Picker("Efekt", selection: Binding(get: { effect }, set: { effect = $0; direction = 0 })) {
+            Section(l("Klavye aydınlatması")) {
+                Picker(l("Efekt"), selection: Binding(get: { effect }, set: { effect = $0; direction = 0 })) {
                     if !Self.effects.contains(where: { $0.0 == effect }) {
-                        Text("Mevcut efekt (\(effect))").tag(effect)
+                        Text(l.format("Mevcut efekt (%@)", String(effect))).tag(effect)
                     }
                     ForEach(Self.effects, id: \.0) { item in
-                        Text(item.1).tag(item.0)
+                        Text(l(item.1)).tag(item.0)
                     }
                 }
                 if effect != 0 && effect != 66 {
                     if effect != 3 {
-                        Toggle("Gökkuşağı", isOn: $rainbow)
-                        if !rainbow { ColorPicker("Renk", selection: $color, supportsOpacity: false) }
+                        Toggle(l("Gökkuşağı"), isOn: $rainbow)
+                        if !rainbow {
+                            ColorPicker(l("Renk"), selection: $color, supportsOpacity: false)
+                            ColorSwatches(color: $color)
+                        }
                     }
                     if [4, 7, 11, 12, 15].contains(effect) {
-                        Picker("Yön", selection: $direction) {
+                        Picker(l("Yön"), selection: $direction) {
                             ForEach(0..<(effect == 4 ? 4 : 2), id: \.self) { value in
-                                Text(directionName(value)).tag(value)
+                                Text(l(directionName(value))).tag(value)
                             }
                         }
                     }
-                    Stepper("Parlaklık  \(brightness + 1) / 5", value: $brightness, in: 0...4)
+                    LevelSlider(title: "Parlaklık", value: $brightness, icon: "sun.max")
                     if effect != 1 {
-                        Stepper("Hız  \(speed + 1) / 5", value: $speed, in: 0...4)
+                        LevelSlider(title: "Hız", value: $speed, icon: "speedometer")
                     }
                 }
             }
             .disabled(draft == nil || busy)
             Section {
                 HStack {
-                    Button("Klavyeden oku") { read() }.disabled(busy)
-                    Button("Klavyeye uygula") { apply() }
+                    Button(l("Klavyeden oku")) { read() }.disabled(busy)
+                    Button(l("Klavyeye uygula")) { apply() }
                         .buttonStyle(.borderedProminent)
                         .disabled(draft == nil || busy || !Self.effects.contains(where: { $0.0 == effect }))
                     if busy { ProgressView().controlSize(.small) }
                 }
                 if !status.isEmpty {
-                    Text(status).foregroundStyle(.secondary).textSelection(.enabled)
+                    Text(l(status)).foregroundStyle(.secondary).textSelection(.enabled)
                 }
             }
-            Section("Yerel aydınlatma ön ayarları") {
-                Picker("Ön ayar", selection: $presetSlot) {
-                    ForEach(1...5, id: \.self) { value in Text("Ön ayar \(value)").tag(value) }
+            Section(l("Yerel aydınlatma ön ayarları")) {
+                Picker(l("Ön ayar"), selection: $presetSlot) {
+                    ForEach(1...5, id: \.self) { value in Text(l.format("Ön ayar %@", String(value))).tag(value) }
                 }
                 HStack {
-                    Button("Taslağı kaydet") { savePreset() }.disabled(draft == nil)
-                    Button("Ön ayarı aç") {
+                    Button(l("Taslağı kaydet")) { savePreset() }.disabled(draft == nil)
+                    Button(l("Ön ayarı aç")) {
                         if let preset = presets[presetSlot] {
                             load(preset)
                             status = "Ön ayar açıldı. Klavyeye göndermek için Uygula’ya bas."
@@ -355,13 +340,14 @@ struct LightingView: View {
                 load(current)
                 status = success
             } catch {
-                status = error.localizedDescription
+                status = l.message(error)
             }
         }
     }
 }
 
 struct KeySettingsView: View {
+    @Environment(\.appLanguage) private var l
     static let keys: [(UInt8, String)] = {
         let letters = zip(UInt8(4)...29, "ABCDEFGHIJKLMNOPQRSTUVWXYZ").map { ($0, String($1)) }
         let digits = zip(UInt8(30)...39, "1234567890").map { ($0, String($1)) }
@@ -396,78 +382,91 @@ struct KeySettingsView: View {
 
     var body: some View {
         Form {
-            Section("Etkin profil") {
-                Picker("Profil", selection: $selectedProfile) {
-                    ForEach(0..<3) { profile in Text("Profil \(profile + 1)").tag(UInt8(profile)) }
+            Section(l("Etkin profil")) {
+                Picker(l("Profil"), selection: $selectedProfile) {
+                    ForEach(0..<3) { profile in Text(l.format("Profil %@", String(profile + 1))).tag(UInt8(profile)) }
                 }
                 .disabled(profile == nil || busy)
                 HStack {
-                    Button("Klavyeden oku") { loadProfile() }.disabled(busy)
-                    Button("Profili değiştir") { switchProfile() }
+                    Button(l("Klavyeden oku")) { loadProfile() }.disabled(busy)
+                    Button(l("Profili değiştir")) { switchProfile() }
                         .disabled(profile == nil || profile == selectedProfile || busy)
                 }
             }
-            Section("Tuş ataması") {
-                Picker("Katman", selection: $fn) {
-                    Text("Temel").tag(false)
+            Section(l("Tuş ataması")) {
+                KeyboardLayout(selection: $source)
+                Picker(l("Katman"), selection: $fn) {
+                    Text(l("Temel")).tag(false)
                     Text("Fn").tag(true)
                 }
                 .onChange(of: fn) { binding = nil }
-                Picker("Fiziksel tuş", selection: $source) {
+                Picker(l("Fiziksel tuş"), selection: $source) {
                     ForEach(Self.keys.filter { Self.slots[$0.0] != nil }, id: \.0) { key in
-                        Text(key.1).tag(key.0)
+                        Text(l(key.1)).tag(key.0)
                     }
                 }
                 .onChange(of: source) { binding = nil }
                 if let binding {
                     let key = Self.keys.first { binding == [0, 0, $0.0, 0] }
-                    let display = binding.allSatisfy { $0 == 0 } ? (fn ? "Temel katman" : "Devre dışı") :
-                        binding[0] == 9 ? "Makro \(Int(binding[2]) + 1)" : key?.1 ?? "Özel atama"
-                    Text("Mevcut atama · \(display)")
+                    let display = binding.allSatisfy { $0 == 0 } ? (fn ? l("Temel katman") : l("Devre dışı")) :
+                        binding[0] == 9 ? l.format("Makro %@", String(Int(binding[2]) + 1)) : l(key?.1 ?? "Özel atama")
+                    Text(l.format("Mevcut atama · %@", display))
                 }
-                Picker("Atama türü", selection: $bindingKind) {
-                    Text("Tuş").tag(0)
-                    Text("Makro").tag(1)
-                    Text("Multimedya").tag(2)
-                    Text(fn ? "Temel katmanı kullan" : "Devre dışı").tag(3)
+                Picker(l("Atama türü"), selection: $bindingKind) {
+                    Text(l("Tuş")).tag(0)
+                    Text(l("Makro")).tag(1)
+                    Text(l("Multimedya")).tag(2)
+                    Text(l(fn ? "Temel katmanı kullan" : "Devre dışı")).tag(3)
                 }
                 switch bindingKind {
                 case 0:
-                    Picker("Yeni tuş", selection: $destination) {
-                        ForEach(Self.keys, id: \.0) { key in Text(key.1).tag(key.0) }
+                    Picker(l("Yeni tuş"), selection: $destination) {
+                        ForEach(Self.keys, id: \.0) { key in Text(l(key.1)).tag(key.0) }
                     }
                 case 1:
-                    Picker("Makro", selection: $macroSlot) {
-                        ForEach(0..<50) { slot in Text("Makro \(slot + 1)").tag(UInt8(slot)) }
+                    Picker(l("Makro"), selection: $macroSlot) {
+                        ForEach(0..<50) { slot in Text(l.format("Makro %@", String(slot + 1))).tag(UInt8(slot)) }
                     }
-                    Picker("Çalma", selection: $playback) {
-                        Text("Belirlenen tekrar sayısı").tag(UInt8(0))
-                        Text("Aç / kapat").tag(UInt8(1))
-                        Text("Basılı tutarken").tag(UInt8(2))
+                    Picker(l("Çalma"), selection: $playback) {
+                        Text(l("Belirlenen tekrar sayısı")).tag(UInt8(0))
+                        Text(l("Aç / kapat")).tag(UInt8(1))
+                        Text(l("Basılı tutarken")).tag(UInt8(2))
                     }
                 case 2:
-                    Picker("Multimedya", selection: $media) {
-                        Text("Sesi artır").tag(UInt16(233))
-                        Text("Sesi azalt").tag(UInt16(234))
-                        Text("Sesi kapat").tag(UInt16(226))
-                        Text("Oynat / duraklat").tag(UInt16(205))
-                        Text("Sonraki parça").tag(UInt16(181))
-                        Text("Önceki parça").tag(UInt16(182))
+                    Picker(l("Multimedya"), selection: $media) {
+                        Text(l("Sesi artır")).tag(UInt16(233))
+                        Text(l("Sesi azalt")).tag(UInt16(234))
+                        Text(l("Sesi kapat")).tag(UInt16(226))
+                        Text(l("Oynat / duraklat")).tag(UInt16(205))
+                        Text(l("Sonraki parça")).tag(UInt16(181))
+                        Text(l("Önceki parça")).tag(UInt16(182))
                     }
                 default: EmptyView()
                 }
-                HStack {
-                    Button("Atamayı oku") { loadBinding() }.disabled(profile == nil)
-                    Button("Atamayı uygula") { assignBinding() }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(binding == nil)
-                }
             }
             .disabled(profile == nil || busy || selectedProfile != profile)
-            if busy { ProgressView().controlSize(.small) }
-            if !status.isEmpty { Text(status).foregroundStyle(.secondary) }
         }
         .formStyle(.grouped)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            VStack(spacing: 0) {
+                Divider()
+                HStack(spacing: 10) {
+                    if busy { ProgressView().controlSize(.small) }
+                    if !status.isEmpty {
+                        Text(l(status)).font(.callout).foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 12)
+                    Button(l("Atamayı oku")) { loadBinding() }
+                        .disabled(profile == nil || busy || selectedProfile != profile)
+                    Button(l("Atamayı uygula")) { assignBinding() }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(binding == nil || busy || selectedProfile != profile)
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+            }
+            .background(.bar)
+        }
         .onAppear { if profile == nil && !busy { loadProfile() } }
     }
 
@@ -523,7 +522,7 @@ struct KeySettingsView: View {
                 status = success
             } catch {
                 binding = nil
-                status = error.localizedDescription
+                status = l.message(error)
             }
         }
     }

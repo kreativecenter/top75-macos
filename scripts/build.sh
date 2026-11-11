@@ -17,6 +17,12 @@ done
 xcrun lipo -create "$build_dir/TOP75-arm64" "$build_dir/TOP75-x86_64" \
   -output "$app_dir/Contents/MacOS/TOP75"
 cp "$project_dir/Resources/Info.plist" "$app_dir/Contents/Info.plist"
+mkdir -p "$app_dir/Contents/Resources"
+for language in en tr; do
+  ditto "$project_dir/Sources/TOP75/Resources/$language.lproj" "$app_dir/Contents/Resources/$language.lproj"
+done
+cp "$project_dir/LICENSE" "$app_dir/Contents/Resources/LICENSE"
+cp "$project_dir/Resources/AppIcon.icns" "$app_dir/Contents/Resources/AppIcon.icns"
 codesign --force --sign "${TOP75_SIGNING_IDENTITY:--}" "$app_dir"
 codesign --verify --strict "$app_dir"
 "$app_dir/Contents/MacOS/TOP75" --verify

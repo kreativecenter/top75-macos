@@ -1,46 +1,56 @@
-# TOP75 for macOS
+<div align="center">
+  <img src="docs/assets/top75.png" alt="TOP75 for macOS app icon" width="112">
+  <h1>TOP75 for macOS</h1>
+  <p>Set up your Darmoshark TOP75 from a native Mac app.</p>
+  <a href="https://github.com/kreativecenter/top75-macos/releases"><img alt="GitHub releases" src="https://img.shields.io/github/v/release/kreativecenter/top75-macos?include_prereleases&amp;label=release"></a>
+  <a href="#compatibility"><img alt="macOS 14 or later" src="https://img.shields.io/badge/macOS-14%2B-111827?logo=apple"></a>
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-22a06b"></a>
+  <p><a href="https://github.com/kreativecenter/top75-macos/releases"><strong>Download</strong></a> · <a href="#quick-start">Quick start</a> · <a href="#build-from-source">Build</a> · <a href="docs/README.tr.md">Türkçe</a></p>
+</div>
 
-An independent, open-source macOS configurator for the wired Darmoshark TOP75 with device ID **957**. The app speaks directly to the keyboard over USB and works offline. The interface is currently in Turkish.
+## Quick start
 
-[Download the latest published build](https://github.com/kreativecenter/top75-macos/releases)
+1. Download **TOP75-macOS.zip** from [Releases](https://github.com/kreativecenter/top75-macos/releases) and extract **TOP75.app**.
+2. Connect the keyboard with a **USB data cable**. Set its mode switch to **OFF** and check that the keyboard display shows **USB**.
+3. Open TOP75. **USB Connected** appears in the sidebar. Read the current setting, make your changes, and click the matching **Apply** button.
 
-## Connect
+**English and Türkçe** are available in **TOP75 → Settings** (⌘,). The app follows your Mac’s language by default and switches immediately when you choose a language. Press **⌘F** to search the built-in guide.
 
-1. Plug the keyboard directly into your Mac with a USB data cable. Set the keyboard’s mode switch to **OFF** so its screen shows **USB**.
-2. Open **TOP75.app** on macOS 14 or later. Release builds include Apple Silicon and Intel binaries.
-3. Open **Aydınlatma** for lighting, **Tuşlar ve profiller** for key assignments and onboard profiles, **Makrolar** for macro slots, **Ekran** for artwork, or **Ayarlar** for device options.
-4. Use **Klavyeden oku** to refresh from the device. Changes are written only when you click the relevant apply button.
+## What you can configure
 
-If macOS prompts for permission to connect the USB accessory, review the prompt before connecting. The downloadable build is ad-hoc signed and distributed as a prerelease. You can also build the app locally.
-
-## Feature coverage
-
-| Feature | Support |
+| Panel | Controls |
 | --- | --- |
-| RGB color, rainbow, effects, speed, brightness, direction | USB control with settings readback. Static color and brightness tested on a TOP75. |
-| Per-key RGB | Read and write individual colors and activate the custom pattern. Single-key write and restoration verified. |
-| Onboard profiles | Switch between three profiles. |
-| Key assignments | Base and Fn layers, HID keys, common media keys, macro slots and disabled/pass-through assignments. Base and Fn writes and restoration tested. |
-| Keyboard macros | Read and edit keyboard strokes, delays and repeat count. Supports assigning a saved macro to a key. Short macro write and clearing tested. The editor supports keyboard events. |
-| Screen artwork | Import a PNG or JPEG into one of five slots, or a GIF of up to 25 frames into the animation slot. A still-image USB transfer was accepted on a TOP75. The device does not expose pixel readback. GIF playback has not been verified on hardware. |
-| Device options | Debounce, automatic OS detection, and Bluetooth/2.4 GHz sleep and deep-sleep timers. Debounce and Bluetooth timer write/readback tested. |
-| Local presets and export | Five local lighting presets. Export a JSON snapshot of the three keymaps, RGB and device options. |
-| Guide | Search the TOP75 shortcuts and setup information with ⌘F. |
+| **Lighting** | Global RGB and rainbow effects, brightness, speed and direction. Pick a key on the layout to set its color. Save up to five presets on the Mac. |
+| **Keys & Profiles** | Select a physical key on the layout, then edit its base or Fn assignment. Assign a key, media command or onboard macro. Switch between three profiles. |
+| **Macros** | Edit keyboard strokes, delays and repeat counts in onboard macro slots. |
+| **Display** | Preview artwork, then send a PNG or JPEG to one of five still-image slots. GIF upload is available for animations of up to 25 frames. |
+| **Device Settings** | Adjust debounce, automatic OS detection, and the Bluetooth and 2.4 GHz sleep timers. Export keymaps, lighting and device settings to JSON. |
 
-The Windows app also offers functions beyond this release. Wireless configuration, firmware flashing, live music/screen-reactive lighting, mouse-event macros, vendor sharing services and JSON restoration are open items. Compatibility is scoped to the USB device reported as 957. The USB VID/PID is shared with other keyboards.
+Configuration runs locally over USB. The app reads back supported settings after writes and shows the result.
 
-## Build
+## Compatibility
 
-Install Xcode with Swift 6 support, then run:
+- **Keyboard** — Darmoshark TOP75, USB device ID **957**. The app checks the keyboard’s reported ID before reading or writing settings.
+- **Mac** — macOS **14 Sonoma** or later. The ZIP contains a universal build for Apple Silicon and Intel. Hardware testing has used an Apple Silicon Mac.
+- **Connection** — use wired USB for configuration. Bluetooth and 2.4 GHz configuration are outside the current release.
+- **Release status** — releases are ad-hoc signed prereleases. Still-image transfer has been exercised on a TOP75. GIF playback needs further hardware verification. The app can export a settings snapshot. Restoring it, firmware flashing, live music or screen effects, and mouse-event macros remain open.
+
+## Build from source
+
+With Xcode and Swift 6 installed:
 
 ```sh
+git clone https://github.com/kreativecenter/top75-macos.git
+cd top75-macos
 ./scripts/build.sh
 ```
 
-This creates `dist/TOP75.app` and `dist/TOP75-macOS.zip`. The script verifies the app signature and exercises the search, HID report, macro, and screen encoding checks. For development, open `Package.swift` in Xcode or run `swift run TOP75`.
+The build creates `dist/TOP75.app` and `dist/TOP75-macOS.zip`. It checks the signature, both languages, search, the keyboard diagram’s slot mapping, and the report, macro and image encoders. Open `Package.swift` in Xcode or run `swift run TOP75` for development.
 
-See [protocol and hardware notes](docs/protocol.md) for command provenance and the verification boundary.
+## Contribute
 
-## License
+[Open an issue](https://github.com/kreativecenter/top75-macos/issues/new) with the app version, macOS version, connection type and steps to reproduce. Read the [protocol and hardware notes](docs/protocol.md) before changing device commands. UI translations are in `Sources/TOP75/Resources`.
 
-MIT. Darmoshark and TOP75 identify the compatible hardware. This is a community project with no vendor affiliation.
+The app is maintained by [Bedirhan Samsa](https://github.com/BEDIRHANSAMSA) under the [MIT license](LICENSE). Darmoshark and TOP75 identify the compatible hardware. This community project has no vendor affiliation.
+
+The [sharkfin protocol documentation](https://github.com/dniminenn/sharkfin/blob/master/docs/PROTOCOL.md) was used to cross-check the USB report format.

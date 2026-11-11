@@ -37,28 +37,30 @@ struct DeviceAction {
 }
 
 struct KeyColorControls: View {
+    @Environment(\.appLanguage) private var l
     @State private var source: UInt8 = 4
     @State private var palette: [UInt32] = []
     @State private var color = Color.black
     @State private var action = DeviceAction()
 
     var body: some View {
-        Section("Tuş başına renk") {
-            Picker("Fiziksel tuş", selection: $source) {
+        Section(l("Tuş başına renk")) {
+            if !palette.isEmpty { KeyboardLayout(selection: $source, colors: palette) }
+            Picker(l("Fiziksel tuş"), selection: $source) {
                 ForEach(KeySettingsView.keys.filter { KeySettingsView.slots[$0.0] != nil }, id: \.0) { key in
-                    Text(key.1).tag(key.0)
+                    Text(l(key.1)).tag(key.0)
                 }
             }
             .onChange(of: source) { showCurrent() }
-            ColorPicker("Tuş rengi", selection: $color, supportsOpacity: false)
+            ColorPicker(l("Tuş rengi"), selection: $color, supportsOpacity: false)
                 .disabled(palette.isEmpty)
             HStack {
-                Button("Renkleri oku") { load() }
-                Button("Tuş rengini yaz") { save() }.disabled(palette.isEmpty)
-                Button("Tuş renklerini göster") { activate() }.disabled(palette.isEmpty)
+                Button(l("Renkleri oku")) { load() }
+                Button(l("Tuş rengini yaz")) { save() }.disabled(palette.isEmpty)
+                Button(l("Tuş renklerini göster")) { activate() }.disabled(palette.isEmpty)
             }
             if action.busy { ProgressView().controlSize(.small) }
-            if !action.status.isEmpty { Text(action.status).foregroundStyle(.secondary) }
+            if !action.status.isEmpty { Text(l(action.status)).foregroundStyle(.secondary) }
         }
         .disabled(action.busy)
     }
@@ -101,13 +103,14 @@ struct KeyColorControls: View {
                 action.status = success
             case .failure(let error):
                 palette = []
-                action.status = error.localizedDescription
+                action.status = l.message(error)
             }
         }
     }
 }
 
 struct DeviceOptionsView: View {
+    @Environment(\.appLanguage) private var l
     @State private var snapshot: SnapshotDocument?
     @State private var exporting = false
     @State private var initial: DeviceOptions?
@@ -116,40 +119,40 @@ struct DeviceOptionsView: View {
 
     var body: some View {
         Form {
-            Section("Tuş tepkisi") {
-                Stepper("Debounce · \(draft.debounce) ms", value: $draft.debounce, in: 0...10)
-                Toggle("İşletim sistemini otomatik algıla", isOn: $draft.automaticOS)
+            Section(l("Tuş tepkisi")) {
+                Stepper(l.format("Debounce · %@ ms", String(draft.debounce)), value: $draft.debounce, in: 0...10)
+                Toggle(l("İşletim sistemini otomatik algıla"), isOn: $draft.automaticOS)
             }
             .disabled(initial == nil || action.busy)
-            Section("Kablosuz uyku zamanlayıcıları") {
+            Section(l("Kablosuz uyku zamanlayıcıları")) {
                 timer("Bluetooth ışık", index: 0)
                 timer("2,4 GHz ışık", index: 1)
                 timer("Bluetooth derin uyku", index: 2)
                 timer("2,4 GHz derin uyku", index: 3)
-                Text("Değeri 0 yaparsan ilgili zamanlayıcı kapanır.").foregroundStyle(.secondary)
+                Text(l("Değeri 0 yaparsan ilgili zamanlayıcı kapanır.")).foregroundStyle(.secondary)
             }
             .disabled(initial == nil || action.busy)
             Section {
                 HStack {
-                    Button("Klavyeden oku") { load() }
-                    Button("Ayarları uygula") { save() }
+                    Button(l("Klavyeden oku")) { load() }
+                    Button(l("Ayarları uygula")) { save() }
                         .buttonStyle(.borderedProminent)
                         .disabled(initial == nil || initial == draft)
                     if action.busy { ProgressView().controlSize(.small) }
                 }
                 .disabled(action.busy)
-                if !action.status.isEmpty { Text(action.status).foregroundStyle(.secondary) }
+                if !action.status.isEmpty { Text(l(action.status)).foregroundStyle(.secondary) }
             }
-            Section("Ayar kaydı") {
-                Button("Ayarları JSON olarak dışa aktar") { export() }.disabled(action.busy)
-                Text("Üç profilin tuş atamalarını, aydınlatmayı ve cihaz ayarlarını dosyaya kaydeder.")
+            Section(l("Ayar kaydı")) {
+                Button(l("Ayarları JSON olarak dışa aktar")) { export() }.disabled(action.busy)
+                Text(l("Üç profilin tuş atamalarını, aydınlatmayı ve cihaz ayarlarını dosyaya kaydeder."))
                     .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
         .onAppear { if initial == nil && !action.busy { load() } }
         .fileExporter(isPresented: $exporting, document: snapshot, contentType: .json, defaultFilename: "TOP75-settings") { result in
-            if case .failure(let error) = result { action.status = error.localizedDescription }
+            if case .failure(let error) = result { action.status = l.message(error) }
         }
     }
 
@@ -163,13 +166,13 @@ struct DeviceOptionsView: View {
                 snapshot = SnapshotDocument(bytes: bytes)
                 exporting = true
             case .failure(let error):
-                action.status = error.localizedDescription
+                action.status = l.message(error)
             }
         }
     }
 
     private func timer(_ title: String, index: Int) -> some View {
-        Stepper("\(title) · \(Int(draft.timers[index]) / 60) dk", value: $draft.timers[index], in: 0...3600, step: 60)
+        Stepper(l.format("%@ · %@ dk", l(title), String(Int(draft.timers[index]) / 60)), value: $draft.timers[index], in: 0...3600, step: 60)
     }
 
     private func load() {
@@ -196,13 +199,14 @@ struct DeviceOptionsView: View {
                 action.status = success
             case .failure(let error):
                 initial = nil
-                action.status = error.localizedDescription
+                action.status = l.message(error)
             }
         }
     }
 }
 
 struct MacroView: View {
+    @Environment(\.appLanguage) private var l
     @State private var slot: UInt8 = 0
     @State private var previous: [UInt8]?
     @State private var strokes: [Macro.Stroke] = []
@@ -213,47 +217,47 @@ struct MacroView: View {
 
     var body: some View {
         Form {
-            Section("Klavye makrosu") {
-                Picker("Yuva", selection: $slot) {
-                    ForEach(0..<50) { value in Text("Makro \(value + 1)").tag(UInt8(value)) }
+            Section(l("Klavye makrosu")) {
+                Picker(l("Yuva"), selection: $slot) {
+                    ForEach(0..<50) { value in Text(l.format("Makro %@", String(value + 1))).tag(UInt8(value)) }
                 }
                 .onChange(of: slot) { previous = nil; strokes = []; action.status = "" }
-                Button("Yuvayı oku") { load() }
-                Stepper("Tekrar · \(repeats)", value: $repeats, in: 1...999)
+                Button(l("Yuvayı oku")) { load() }
+                Stepper(l.format("Tekrar · %@", String(repeats)), value: $repeats, in: 1...999)
                     .disabled(previous == nil)
             }
             .disabled(action.busy)
-            Section("Tuş olayları") {
-                Picker("Tuş", selection: $key) {
-                    ForEach(KeySettingsView.keys, id: \.0) { item in Text(item.1).tag(item.0) }
+            Section(l("Tuş olayları")) {
+                Picker(l("Tuş"), selection: $key) {
+                    ForEach(KeySettingsView.keys, id: \.0) { item in Text(l(item.1)).tag(item.0) }
                 }
-                Stepper("Olaydan sonra bekle · \(delay) ms", value: $delay, in: 0...5000, step: 10)
+                Stepper(l.format("Olaydan sonra bekle · %@ ms", String(delay)), value: $delay, in: 0...5000, step: 10)
                 HStack {
-                    Button("Vuruş ekle") {
+                    Button(l("Vuruş ekle")) {
                         strokes += [Macro.Stroke(key: key, down: true, delay: 30), Macro.Stroke(key: key, down: false, delay: delay)]
                     }
-                    Button("Basma ekle") { strokes.append(Macro.Stroke(key: key, down: true, delay: delay)) }
-                    Button("Bırakma ekle") { strokes.append(Macro.Stroke(key: key, down: false, delay: delay)) }
-                    Button("Son olayı çıkar") { strokes.removeLast() }.disabled(strokes.isEmpty)
+                    Button(l("Basma ekle")) { strokes.append(Macro.Stroke(key: key, down: true, delay: delay)) }
+                    Button(l("Bırakma ekle")) { strokes.append(Macro.Stroke(key: key, down: false, delay: delay)) }
+                    Button(l("Son olayı çıkar")) { strokes.removeLast() }.disabled(strokes.isEmpty)
                 }
                 .disabled(strokes.count >= 110)
-                if strokes.isEmpty { Text("Olay yok").foregroundStyle(.secondary) }
+                if strokes.isEmpty { Text(l("Olay yok")).foregroundStyle(.secondary) }
                 ForEach(strokes.indices, id: \.self) { index in
                     let stroke = strokes[index]
                     let name = KeySettingsView.keys.first { $0.0 == stroke.key }?.1 ?? "HID \(stroke.key)"
-                    Text("\(index + 1). \(name) · \(stroke.down ? "Bas" : "Bırak") · \(stroke.delay) ms")
+                    Text("\(index + 1). \(l(name)) · \(l(stroke.down ? "Bas" : "Bırak")) · \(stroke.delay) ms")
                 }
-                Button("Taslağı temizle") { strokes = [] }.disabled(strokes.isEmpty)
+                Button(l("Taslağı temizle")) { strokes = [] }.disabled(strokes.isEmpty)
             }
             .disabled(previous == nil || action.busy)
             Section {
                 HStack {
-                    Button("Makroyu klavyeye yaz") { save() }
+                    Button(l("Makroyu klavyeye yaz")) { save() }
                         .buttonStyle(.borderedProminent)
                         .disabled(previous == nil || action.busy)
                     if action.busy { ProgressView().controlSize(.small) }
                 }
-                if !action.status.isEmpty { Text(action.status).foregroundStyle(.secondary) }
+                if !action.status.isEmpty { Text(l(action.status)).foregroundStyle(.secondary) }
             }
         }
         .formStyle(.grouped)
@@ -273,7 +277,7 @@ struct MacroView: View {
                 try Keyboard.setMacro(slot: index, bytes: bytes, previous: previous)
             }
         } catch {
-            action.status = error.localizedDescription
+            action.status = l.message(error)
         }
     }
 
@@ -291,13 +295,14 @@ struct MacroView: View {
                 action.status = success
             } catch {
                 previous = nil
-                action.status = error.localizedDescription
+                action.status = l.message(error)
             }
         }
     }
 }
 
 struct ScreenView: View {
+    @Environment(\.appLanguage) private var l
     @State private var artwork: ScreenArtwork?
     @State private var fileName = ""
     @State private var choosing = false
@@ -308,33 +313,38 @@ struct ScreenView: View {
 
     var body: some View {
         Form {
-            Section("128 × 128 ekran") {
-                Button("Görsel veya GIF seç") { choosing = true }.disabled(action.busy)
+            Section(l("128 × 128 ekran")) {
+                Button(l("Görsel veya GIF seç")) { choosing = true }.disabled(action.busy)
                 if let artwork {
                     if let data = artwork.previewPNG, let preview = NSImage(data: data) {
                         Image(nsImage: preview)
                             .interpolation(.none)
                             .resizable()
-                            .frame(width: 128, height: 128)
-                            .accessibilityLabel("Ekran önizlemesi")
+                            .frame(width: 144, height: 144)
+                            .clipShape(RoundedRectangle(cornerRadius: 7))
+                            .padding(10)
+                            .background(.black, in: RoundedRectangle(cornerRadius: 14))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 6)
+                            .accessibilityLabel(l("Ekran önizlemesi"))
                     }
-                    LabeledContent("Dosya", value: fileName)
+                    LabeledContent(l("Dosya"), value: fileName)
                     if artwork.frames.count == 1 {
-                        Picker("Görsel yuvası", selection: $slot) {
-                            ForEach(0..<5) { value in Text("Yuva \(value + 1)").tag(UInt8(value)) }
+                        Picker(l("Görsel yuvası"), selection: $slot) {
+                            ForEach(0..<5) { value in Text(l.format("Yuva %@", String(value + 1))).tag(UInt8(value)) }
                         }
                         .disabled(action.busy)
                     } else {
-                        LabeledContent("Animasyon", value: "\(artwork.frames.count) kare · \(artwork.delay) ms")
+                        LabeledContent(l("Animasyon"), value: l.format("%@ kare · %@ ms", String(artwork.frames.count), String(artwork.delay)))
                     }
                 }
             }
             Section {
-                Button("Ekrana aktar") { confirming = true }
+                Button(l("Ekrana aktar")) { confirming = true }
                     .buttonStyle(.borderedProminent)
                     .disabled(action.busy || artwork == nil)
                 if action.busy { ProgressView(value: progress) }
-                if !action.status.isEmpty { Text(action.status).foregroundStyle(.secondary) }
+                if !action.status.isEmpty { Text(l(action.status)).foregroundStyle(.secondary) }
             }
         }
         .formStyle(.grouped)
@@ -351,19 +361,19 @@ struct ScreenView: View {
                         fileName = url.lastPathComponent
                     case .failure(let error):
                         artwork = nil
-                        action.status = error.localizedDescription
+                        action.status = l.message(error)
                     }
                 }
             } catch {
-                action.status = error.localizedDescription
+                action.status = l.message(error)
             }
         }
-        .confirmationDialog("Ekran içeriğini değiştir", isPresented: $confirming) {
-            Button("Aktar") { upload() }
+        .confirmationDialog(l("Ekran içeriğini değiştir"), isPresented: $confirming) {
+            Button(l("Aktar")) { upload() }
         } message: {
             Text(artwork?.frames.count == 1
-                ? "Yuva \(Int(slot) + 1) içindeki görsel değişecek."
-                : "Mevcut animasyon değişecek.")
+                ? l.format("Yuva %@ içindeki görsel değişecek.", String(Int(slot) + 1))
+                : l("Mevcut animasyon değişecek."))
         }
     }
 
@@ -383,7 +393,7 @@ struct ScreenView: View {
             case .success:
                 action.status = "Aktarım gönderildi. Sonucu klavye ekranından kontrol et."
             case .failure(let error):
-                action.status = error.localizedDescription
+                action.status = l.message(error)
             }
         }
     }
