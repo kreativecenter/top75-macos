@@ -16,22 +16,22 @@ Darmoshark TOP75’i doğrudan USB üzerinden yapılandıran açık kaynak macOS
 
 **Aydınlatma**
 
-![TOP75 aydınlatma panelinde renk örnekleri, parlaklık ve hız ayarları](assets/lighting.png)
+![TOP75 aydınlatma panelinde klavye çizimi üzerinde mavi dalga efekti](assets/lighting.png)
 
 **Tuşlar ve profiller**
 
-![TOP75 tuş ve profil panelinde klavye çiziminden G tuşu seçili](assets/keys-profiles.png)
+![TOP75 tuş ve profil panelinde Fn + F12 için multimedya ataması okunmuş](assets/keys-profiles.png)
 
 ## Paneller
 
 | Panel | İşlev |
 | --- | --- |
-| **Aydınlatma** | Renk, efekt, yön, parlaklık ve hız. Tuş başına RGB ve beş yerel ön ayar. |
+| **Aydınlatma** | Canlı efekt önizlemesi, renk, yön, parlaklık ve hız. Tuş başına RGB ve beş yerel ön ayar. |
 | **Tuşlar ve profiller** | Klavye çiziminden tuş seç, temel veya Fn katmanına tuş, multimedya işlevi veya makro ata. Üç cihaz profili arasında geçiş yap. |
 | **Makrolar** | Tuş olayları, bekleme süreleri ve tekrar sayısını düzenle. |
 | **Ekran** | PNG ve JPEG için önizleme ve beş sabit görsel yuvası. En fazla 25 kareli GIF aktarımı. |
 | **Cihaz ayarları** | Tuş tepki süresi, otomatik işletim sistemi algılama, kablosuz uyku süreleri ve JSON ayar kaydı. |
 
-Apple Silicon ve Intel için derlenen uygulama macOS 14 ve üstünü hedefler. DMG ve ZIP, aynı imzalı ve Apple noter onaylı uygulamayı içerir. Cihaz ayarları USB üzerinden yazılır ve uygulama TOP75 kimliği **957** olan modeli doğrular. GIF oynatma fiziksel klavyede ayrıca test edilmelidir. JSON geri yükleme, kablosuz yapılandırma, firmware güncelleme, müzik ve ekran eşleme ile fare olaylı makrolar henüz yok.
+Apple Silicon ve Intel için derlenen uygulama macOS 14 ve üstünü hedefler. DMG ve ZIP, aynı imzalı ve Apple noter onaylı uygulamayı içerir. Cihaz ayarları USB üzerinden yazılır ve uygulama TOP75 kimliği **957** olan modeli doğrular. Sabit görselin fiziksel klavyede görüntülendiği doğrulandı. GIF oynatma ayrıca test edilmelidir. JSON geri yükleme, kablosuz yapılandırma, firmware güncelleme, müzik ve ekran eşleme ile fare olaylı makrolar henüz yok.
 
 Xcode ve Swift 6 ile depoda `./scripts/build.sh` çalıştırarak dağıtım paketini oluşturabilirsin. Kaynak kodu [MIT lisansı](../LICENSE) ile yayımlanır.

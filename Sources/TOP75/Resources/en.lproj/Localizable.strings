@@ -218,3 +218,16 @@
 "20 MB altında, okunabilir bir görsel seç." = "Choose a supported image under 20 MB.";
 "En fazla 25 kare içeren bir görsel veya GIF seç." = "Choose an image or GIF with no more than 25 frames.";
 "Ekran aktarımı için klavye hazır yanıtı vermedi." = "The keyboard did not report that the display was ready.";
+"Efekt önizlemesi" = "Effect Preview";
+"Duraklat" = "Pause";
+"Oynat" = "Play";
+"Tuş renklerini görmek için klavyeden oku." = "Read the keyboard to preview its per-key colors.";
+"Efekti denemek için çizimde bir tuşa tıkla." = "Click a key on the diagram to try the effect.";
+"Yaklaşık önizleme. Ayarlar Uygula ile klavyeye gönderilir." = "Approximate preview. Click Apply to send changes to the keyboard.";
+"Uygulanmamış değişiklikler" = "Unapplied changes";
+"Taslağı sıfırla" = "Discard Draft";
+"Geri al" = "Undo";
+"Aydınlatma geri alındı." = "Lighting change undone and verified.";
+"Mevcut atama" = "Current Assignment";
+"Tuş ataması geri alındı." = "Key assignment undone and verified.";
+"Uygulamak için TOP75’i USB ile bağla." = "Connect the TOP75 over USB to apply changes.";

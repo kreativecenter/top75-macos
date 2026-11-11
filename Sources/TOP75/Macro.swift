@@ -16,8 +16,25 @@ struct Macro: Sendable {
     }
 
     init(bytes: [UInt8]) throws {
+        let decoded = try Self.decode(bytes)
+        repeats = decoded.repeats
+        strokes = decoded.strokes
+    }
+
+    private static let writableBytes = 4 * 56
+    private static let terminatorSize = 4
+
+    static func writeLength(_ bytes: [UInt8]) throws -> Int {
+        let terminator = try decode(bytes).end
+        let required = terminator + terminatorSize
+        guard required <= writableBytes else { throw MacroError.tooLong }
+        guard bytes[terminator..<required].allSatisfy({ $0 == 0 }) else { throw MacroError.unsupported }
+        return required
+    }
+
+    private static func decode(_ bytes: [UInt8]) throws -> (repeats: UInt16, strokes: [Stroke], end: Int) {
         guard bytes.count == 256 else { throw MacroError.unsupported }
-        repeats = UInt16(bytes[0]) | UInt16(bytes[1]) << 8
+        let repeats = UInt16(bytes[0]) | UInt16(bytes[1]) << 8
         var cursor = 2
         var strokes: [Stroke] = []
         while cursor + 1 < bytes.count, bytes[cursor] != 0 {
@@ -33,7 +50,7 @@ struct Macro: Sendable {
             }
             strokes.append(Stroke(key: key, down: flags & 0x80 != 0, delay: delay))
         }
-        self.strokes = strokes
+        return (repeats, strokes, cursor)
     }
 
     func encoded() throws -> [UInt8] {
@@ -50,7 +67,7 @@ struct Macro: Sendable {
             }
         }
         guard held.isEmpty else { throw MacroError.unreleasedKeys }
-        guard bytes.count <= 222 else { throw MacroError.tooLong }
+        guard bytes.count + Self.terminatorSize <= Self.writableBytes else { throw MacroError.tooLong }
         return bytes + [UInt8](repeating: 0, count: 256 - bytes.count)
     }
 }

@@ -1,13 +1,13 @@
 import SwiftUI
 
 struct KeyboardLayout: View {
-    private struct Cap {
+    struct Cap {
         let code: UInt8?
         let legend: String
         var units: CGFloat = 1
     }
 
-    private static let rows: [[Cap]] = [
+    static let rows: [[Cap]] = [
         [Cap(code: 41, legend: "esc")] + (58...69).map { Cap(code: UInt8($0), legend: "F\($0 - 57)") }
             + [Cap(code: 76, legend: "del"), Cap(code: nil, legend: "▣", units: 1.5)],
         [Cap(code: 53, legend: "~")] + zip(30...39, "1234567890").map { Cap(code: UInt8($0), legend: String($1)) }
@@ -67,13 +67,20 @@ struct KeyboardLayout: View {
             let slot = KeySettingsView.slots[code].map(Int.init)
             let rgb = slot.flatMap { colors.indices.contains($0) ? colors[$0] : nil } ?? 0
             let tint = rgb == 0 ? Color(nsColor: .controlBackgroundColor) : Color(rgb24: rgb).opacity(0.36)
+            let painted = !colors.isEmpty
             Button { selection = code } label: {
                 Text(cap.legend)
                     .font(.system(size: 10, weight: .medium, design: .monospaced))
-                    .foregroundStyle(selected ? Color.white : Color.primary)
+                    .foregroundStyle(selected && !painted ? Color.white : Color.primary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(selected ? Color.accentColor : tint, in: RoundedRectangle(cornerRadius: 4))
-                    .overlay { RoundedRectangle(cornerRadius: 4).strokeBorder(.quaternary) }
+                    .background(selected && !painted ? Color.accentColor : tint, in: RoundedRectangle(cornerRadius: 4))
+                    .overlay {
+                        if selected && painted {
+                            RoundedRectangle(cornerRadius: 4).strokeBorder(Color.accentColor, lineWidth: 2)
+                        } else {
+                            RoundedRectangle(cornerRadius: 4).strokeBorder(.quaternary)
+                        }
+                    }
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)

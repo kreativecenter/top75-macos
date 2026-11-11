@@ -72,8 +72,9 @@ enum Keyboard {
         try withDevice { try readLighting($0) }
     }
 
-    static func apply(_ lighting: Lighting) throws -> Lighting {
+    static func apply(_ lighting: Lighting, replacing previous: Lighting? = nil) throws -> Lighting {
         try withDevice { device in
+            if let previous, try !readLighting(device).matches(previous) { throw KeyboardError.mismatch }
             try send(device, lighting.report)
             for _ in 0..<3 {
                 Thread.sleep(forTimeInterval: 0.25)

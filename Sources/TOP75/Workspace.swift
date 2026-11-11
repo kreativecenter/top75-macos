@@ -204,7 +204,7 @@ struct WorkspaceView: View {
     @ViewBuilder
     private func content(_ page: WorkspacePage) -> some View {
         switch page {
-        case .lighting: LightingView()
+        case .lighting: LightingView(connected: connected, isActive: storedPage == .lighting)
         case .keys: KeySettingsView()
         case .macros: MacroView()
         case .display: ScreenView()

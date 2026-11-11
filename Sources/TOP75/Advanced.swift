@@ -61,10 +61,6 @@ extension Keyboard {
         }
     }
 
-    static func showKeyColors() throws -> Lighting {
-        try apply(Lighting(effect: 66, speed: 0, brightness: 0, flags: 7, rgb: 0))
-    }
-
     private static func readKeyColors(_ device: IOHIDDevice) throws -> [UInt32] {
         let bytes = try readPages(device, opcode: 0x8C, index: 0, count: 6)
         return stride(from: 0, to: bytes.count, by: 3).map {
@@ -79,24 +75,34 @@ extension Keyboard {
 
     static func setMacro(slot: UInt8, bytes: [UInt8], previous: [UInt8]) throws -> [UInt8] {
         guard slot < 50, bytes.count == 256, bytes.suffix(34).allSatisfy({ $0 == 0 }) else { throw KeyboardError.invalidReply }
+        let requiredBytes = try Macro.writeLength(bytes)
         return try withDevice { device in
             guard try readPages(device, opcode: 0x8B, index: slot, count: 4) == previous else {
                 throw KeyboardError.mismatch
             }
-            let lastByte = bytes.lastIndex(where: { $0 != 0 }) ?? 0
-            let pageCount = lastByte / 56 + 1
-            for page in 0..<pageCount {
-                let start = 56 * page
-                let payload = Array(bytes[start..<min(start + 56, bytes.count)])
-                let header: [UInt8] = [0x16, slot, UInt8(page), 56, page == pageCount - 1 ? 1 : 0, 0, 0, 0]
-                try send(device, report(header + payload, checksumIndex: 7))
-                Thread.sleep(forTimeInterval: 0.04)
+            // Include the terminator even when the final event ends on a page boundary.
+            let pageCount = (requiredBytes + 55) / 56
+            let expected = bytes.prefix(requiredBytes)
+            for _ in 0..<2 {
+                for page in 0..<pageCount {
+                    let start = 56 * page
+                    let payload = Array(bytes[start..<start + 56])
+                    let header: [UInt8] = [0x16, slot, UInt8(page), 56, page == pageCount - 1 ? 1 : 0, 0, 0, 0]
+                    try send(device, report(header + payload, checksumIndex: 7))
+                    // This TOP75 ignored multi-page macros at a 40 ms interval.
+                    Thread.sleep(forTimeInterval: 0.15)
+                }
+                Thread.sleep(forTimeInterval: 0.70)
+                var current = try readPages(device, opcode: 0x8B, index: slot, count: 4)
+                for _ in 0..<2 where current.prefix(requiredBytes) != expected {
+                    Thread.sleep(forTimeInterval: 0.20)
+                    current = try readPages(device, opcode: 0x8B, index: slot, count: 4)
+                }
+                if current.prefix(requiredBytes) == expected { return current }
+                // Retry only if the slot still contains the original data.
+                guard current == previous else { throw KeyboardError.mismatch }
             }
-            Thread.sleep(forTimeInterval: 0.25)
-            let current = try readPages(device, opcode: 0x8B, index: slot, count: 4)
-            let verifiedCount = min(pageCount * 56, bytes.count)
-            guard current.prefix(verifiedCount) == bytes.prefix(verifiedCount) else { throw KeyboardError.mismatch }
-            return current
+            throw KeyboardError.mismatch
         }
     }
 

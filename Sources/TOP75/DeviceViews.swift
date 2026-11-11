@@ -39,13 +39,14 @@ struct DeviceAction {
 struct KeyColorControls: View {
     @Environment(\.appLanguage) private var l
     @State private var source: UInt8 = 4
-    @State private var palette: [UInt32] = []
+    @Binding var palette: [UInt32]
+    var onActivate: () -> Void
     @State private var color = Color.black
     @State private var action = DeviceAction()
 
     var body: some View {
         Section(l("Tuş başına renk")) {
-            if !palette.isEmpty { KeyboardLayout(selection: $source, colors: palette) }
+            if !palette.isEmpty { KeyboardLayout(selection: $source, colors: draftPalette) }
             Picker(l("Fiziksel tuş"), selection: $source) {
                 ForEach(KeySettingsView.keys.filter { KeySettingsView.slots[$0.0] != nil }, id: \.0) { key in
                     Text(l(key.1)).tag(key.0)
@@ -57,7 +58,7 @@ struct KeyColorControls: View {
             HStack {
                 Button(l("Renkleri oku")) { load() }
                 Button(l("Tuş rengini yaz")) { save() }.disabled(palette.isEmpty)
-                Button(l("Tuş renklerini göster")) { activate() }.disabled(palette.isEmpty)
+                Button(l("Tuş renklerini göster"), action: onActivate).disabled(palette.isEmpty)
             }
             if action.busy { ProgressView().controlSize(.small) }
             if !action.status.isEmpty { Text(l(action.status)).foregroundStyle(.secondary) }
@@ -86,8 +87,12 @@ struct KeyColorControls: View {
         } update: { palette[Int(slot)] = $0 }
     }
 
-    private func activate() {
-        run("Tuş başına renk efekti etkin.") { try Keyboard.showKeyColors() } update: { _ in }
+    private var draftPalette: [UInt32] {
+        guard let slot = KeySettingsView.slots[source], palette.indices.contains(Int(slot)),
+              let rgb = color.rgb24 else { return palette }
+        var draft = palette
+        draft[Int(slot)] = rgb
+        return draft
     }
 
     private func run<T: Sendable>(

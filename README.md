@@ -20,30 +20,30 @@
 
 **Lighting**
 
-![TOP75 Lighting panel with color swatches, brightness and speed controls](docs/assets/lighting.png)
+![TOP75 Lighting panel showing a blue wave on the keyboard preview](docs/assets/lighting.png)
 
 **Keys & Profiles**
 
-![TOP75 Keys and Profiles panel with the G key selected on the interactive keyboard](docs/assets/keys-profiles.png)
+![TOP75 Keys and Profiles panel showing Fn + F12 loaded as a media assignment](docs/assets/keys-profiles.png)
 
 ## What you can configure
 
 | Panel | Controls |
 | --- | --- |
-| **Lighting** | Global RGB and rainbow effects, brightness, speed and direction. Pick a key on the layout to set its color. Save up to five presets on the Mac. |
+| **Lighting** | Preview RGB effects on the keyboard diagram, even without a USB connection. Adjust color, brightness, speed and direction before applying. Pick a key on the layout to set its color. Save up to five presets on the Mac. |
 | **Keys & Profiles** | Select a physical key on the layout, then edit its base or Fn assignment. Assign a key, media command or onboard macro. Switch between three profiles. |
 | **Macros** | Edit keyboard strokes, delays and repeat counts in onboard macro slots. |
 | **Display** | Preview artwork, then send a PNG or JPEG to one of five still-image slots. GIF upload is available for animations of up to 25 frames. |
 | **Device Settings** | Adjust debounce, automatic OS detection, and the Bluetooth and 2.4 GHz sleep timers. Export keymaps, lighting and device settings to JSON. |
 
-Configuration runs locally over USB. The app reads back supported settings after writes and shows the result.
+Configuration runs locally over USB. The app reads back supported settings after writes and shows the result. Lighting and key assignments support undo after a verified change.
 
 ## Compatibility
 
 - **Keyboard** — Darmoshark TOP75, USB device ID **957**. The app checks the keyboard’s reported ID before reading or writing settings.
 - **Mac** — macOS **14 Sonoma** or later. The DMG and ZIP contain the same universal app for Apple Silicon and Intel. Hardware testing has used an Apple Silicon Mac.
 - **Connection** — use wired USB for configuration. Bluetooth and 2.4 GHz configuration are outside the current release.
-- **Release status** — check the release notes for signing and notarization status. Still-image transfer has been exercised on a TOP75. GIF playback needs further hardware verification. The app can export a settings snapshot. Restoring it, firmware flashing, live music or screen effects, and mouse-event macros remain open.
+- **Release status** — check the release notes for signing and notarization status. Still-image upload and display have been confirmed on a TOP75. GIF playback needs further hardware verification. The app can export a settings snapshot. Restoring it, firmware flashing, live music or screen effects, and mouse-event macros remain open.
 
 ## Build from source
 

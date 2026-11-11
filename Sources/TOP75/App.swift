@@ -136,6 +136,20 @@ enum Launch {
             precondition(Entry.search("    ").count == Entry.catalog.count)
             precondition(Entry.search("bilinmeyen-terim").isEmpty)
             precondition(AppIcon.image() != nil, "The application icon is missing or unreadable.")
+            for raw: [UInt8] in [[0, 0, 0, 0], [0, 0, 69, 0], [9, 2, 6, 0], [3, 0, 233, 0], [3, 0, 33, 2], [10, 4, 1, 3]] {
+                precondition(KeyAssignment(bytes: raw).bytes == raw)
+            }
+            precondition(KeyAssignment(bytes: [9, 2, 6, 0]) == .macro(slot: 6, playback: 2))
+            precondition(KeyAssignment(bytes: [3, 0, 233, 0]) == .media(233))
+            let tap = [Macro.Stroke(key: 4, down: true, delay: 20), Macro.Stroke(key: 4, down: false, delay: 20)]
+            var pageBoundary = Array(repeating: tap, count: 13).flatMap { $0 }
+            pageBoundary[0] = Macro.Stroke(key: 4, down: true, delay: 250)
+            let boundaryBytes = try! Macro(repeats: 1, strokes: pageBoundary).encoded()
+            precondition(try! Macro.writeLength(boundaryBytes) == 60)
+            pageBoundary[25] = Macro.Stroke(key: 4, down: false, delay: 0)
+            pageBoundary[0] = tap[0]
+            let zeroDelayBytes = try! Macro(repeats: 1, strokes: pageBoundary).encoded()
+            precondition(try! Macro.writeLength(zeroDelayBytes) == 60)
             let english = AppLanguage(code: "en")
             let turkish = AppLanguage(code: "tr")
             precondition(english("Aydınlatma") == "Lighting")
@@ -197,20 +211,33 @@ struct LightingView: View {
         (17, "Yağmur"), (18, "Meteor"), (19, "Tuşa basınca sön"), (66, "Tuş başına renk")
     ]
 
-    @State private var draft: Lighting?
-    @State private var effect: UInt8 = 1
+    let connected: Bool
+    let isActive: Bool
+
+    @State private var confirmed: Lighting?
+    @State private var baseline: Lighting?
+    @State private var undoLighting: Lighting?
+    @State private var palette: [UInt32] = []
+    @State private var effect: UInt8 = 4
     @State private var direction = 0
     @State private var speed = 2
     @State private var brightness = 4
     @State private var rainbow = false
     @State private var presetSlot = 1
     @AppStorage("lightingPresets") private var storedPresets = Data()
-    @State private var color = Color.white
+    @State private var color = Color(rgb24: 0x739BFF)
     @State private var busy = false
     @State private var status = ""
+    @State private var hasError = false
 
     var body: some View {
         Form {
+            Section {
+                if let preview = requestedLighting {
+                    LightingPreview(lighting: preview, palette: palette, isActive: isActive)
+                        .padding(.vertical, 4)
+                }
+            }
             Section(l("Klavye aydınlatması")) {
                 Picker(l("Efekt"), selection: Binding(get: { effect }, set: { effect = $0; direction = 0 })) {
                     if !Self.effects.contains(where: { $0.0 == effect }) {
@@ -241,40 +268,89 @@ struct LightingView: View {
                     }
                 }
             }
-            .disabled(draft == nil || busy)
-            Section {
-                HStack {
-                    Button(l("Klavyeden oku")) { read() }.disabled(busy)
-                    Button(l("Klavyeye uygula")) { apply() }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(draft == nil || busy || !Self.effects.contains(where: { $0.0 == effect }))
-                    if busy { ProgressView().controlSize(.small) }
-                }
-                if !status.isEmpty {
-                    Text(l(status)).foregroundStyle(.secondary).textSelection(.enabled)
-                }
-            }
+            .disabled(busy)
             Section(l("Yerel aydınlatma ön ayarları")) {
                 Picker(l("Ön ayar"), selection: $presetSlot) {
                     ForEach(1...5, id: \.self) { value in Text(l.format("Ön ayar %@", String(value))).tag(value) }
                 }
                 HStack {
-                    Button(l("Taslağı kaydet")) { savePreset() }.disabled(draft == nil)
+                    Button(l("Taslağı kaydet")) { savePreset() }.disabled(requestedLighting == nil)
                     Button(l("Ön ayarı aç")) {
                         if let preset = presets[presetSlot] {
                             load(preset)
                             status = "Ön ayar açıldı. Klavyeye göndermek için Uygula’ya bas."
                         }
                     }
-                    .disabled(presets[presetSlot] == nil || draft == nil)
+                    .disabled(presets[presetSlot] == nil)
                 }
             }
             .disabled(busy)
-            KeyColorControls()
+            KeyColorControls(palette: $palette) {
+                write(Lighting(effect: 66, speed: 0, brightness: 0, flags: 7, rgb: 0))
+            }
+            .disabled(!connected || confirmed == nil || busy)
         }
         .formStyle(.grouped)
-        .onAppear { if draft == nil && !busy { read() } }
+        .safeAreaInset(edge: .bottom, spacing: 0) { actionBar }
+        .onChange(of: connected, initial: true) { _, available in
+            if !available {
+                confirmed = nil
+                undoLighting = nil
+                palette = []
+            } else if confirmed == nil {
+                read()
+            }
+        }
+    }
 
+    private var hasChanges: Bool {
+        guard let requestedLighting else { return false }
+        return requestedLighting != (baseline ?? Lighting(effect: 4, speed: 2, brightness: 4, flags: 7, rgb: 0x739BFF))
+    }
+
+    private var canApply: Bool {
+        connected && !busy && confirmed != nil && hasChanges
+    }
+
+    private var actionStatus: String {
+        if !connected { return "Uygulamak için TOP75’i USB ile bağla." }
+        if hasChanges && !hasError { return "Uygulanmamış değişiklikler" }
+        return status
+    }
+
+    private var actionBar: some View {
+        VStack(spacing: 0) {
+            Divider()
+            HStack(spacing: 10) {
+                if busy { ProgressView().controlSize(.small) }
+                Text(l(actionStatus))
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                Spacer(minLength: 8)
+                if hasChanges && baseline != nil {
+                    Button(l("Taslağı sıfırla")) {
+                        if let baseline { load(baseline); status = ""; hasError = false }
+                    }
+                    .disabled(busy)
+                } else if undoLighting != nil {
+                    Button(l("Geri al")) {
+                        if let undoLighting { write(undoLighting, isUndo: true) }
+                    }
+                    .disabled(!connected || confirmed == nil || busy)
+                }
+                Button(l("Klavyeden oku")) { read() }
+                    .disabled(!connected || busy)
+                Button(l("Klavyeye uygula")) {
+                    if let requestedLighting { write(requestedLighting) }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(!canApply)
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+        }
+        .background(.bar)
     }
 
     private func directionName(_ index: Int) -> String {
@@ -288,7 +364,13 @@ struct LightingView: View {
     }
 
     private func read() {
-        run("TOP75 bağlı. Aydınlatma ayarı okundu.") { try Keyboard.lighting() }
+        guard connected, !busy else { return }
+        let pending = hasChanges ? requestedLighting : nil
+        run("TOP75 bağlı. Aydınlatma ayarı okundu.", operation: { try Keyboard.lighting() }) { current in
+            if confirmed != current { undoLighting = nil }
+            accept(current)
+            if let pending { load(pending) }
+        }
     }
 
     private var presets: [Int: Lighting] {
@@ -306,20 +388,31 @@ struct LightingView: View {
     }
 
     private var requestedLighting: Lighting? {
-        guard let rgb = color.rgb24 else { return nil }
+        guard Self.effects.contains(where: { $0.0 == effect }), let rgb = color.rgb24 else { return nil }
+        if effect == 0 { return Lighting(effect: 0, speed: 0, brightness: 0, flags: 7, rgb: 0) }
         if effect == 66 { return Lighting(effect: 66, speed: 0, brightness: 0, flags: 7, rgb: 0) }
         let supportsDirection = [4, 7, 11, 12, 15].contains(effect)
         let option = supportsDirection ? UInt8(direction) << 4 : 0
-        let flags: UInt8 = [0, 3].contains(effect) ? 7 : (rainbow ? 8 : 7)
+        let flags: UInt8 = effect == 3 ? 7 : (rainbow ? 8 : 7)
         return Lighting(
-            effect: effect, speed: UInt8(speed), brightness: UInt8(brightness),
+            effect: effect, speed: effect == 1 ? 0 : UInt8(speed), brightness: UInt8(brightness),
             flags: option | flags, rgb: effect == 3 ? 0 : rgb
         )
     }
 
-    private func apply() {
-        guard let requested = requestedLighting else { return }
-        run("Aydınlatma uygulandı ve klavyeden doğrulandı.") { try Keyboard.apply(requested) }
+    private func write(_ requested: Lighting, isUndo: Bool = false) {
+        guard connected, !busy, let previous = confirmed else { return }
+        let success = isUndo ? "Aydınlatma geri alındı." : "Aydınlatma uygulandı ve klavyeden doğrulandı."
+        run(success, operation: { try Keyboard.apply(requested, replacing: previous) }) { current in
+            undoLighting = isUndo ? nil : previous
+            accept(current)
+        }
+    }
+
+    private func accept(_ current: Lighting) {
+        confirmed = current
+        load(current)
+        baseline = requestedLighting
     }
 
     private func load(_ lighting: Lighting) {
@@ -333,17 +426,23 @@ struct LightingView: View {
         color = Color(rgb24: palette.indices.contains(index) ? palette[index] : lighting.rgb)
     }
 
-    private func run(_ success: String, operation: @escaping @Sendable () throws -> Lighting) {
+    private func run(
+        _ success: String,
+        operation: @escaping @Sendable () throws -> Lighting,
+        update: @escaping (Lighting) -> Void
+    ) {
         busy = true
         status = ""
+        hasError = false
         Task {
             defer { busy = false }
             do {
-                let current = try await Task.detached(operation: operation).value
-                draft = current
-                load(current)
+                update(try await Task.detached(operation: operation).value)
                 status = success
             } catch {
+                confirmed = nil
+                undoLighting = nil
+                hasError = true
                 status = l.message(error)
             }
         }
@@ -375,12 +474,9 @@ struct KeySettingsView: View {
     @State private var selectedProfile: UInt8 = 0
     @State private var source: UInt8 = 69
     @State private var fn = false
-    @State private var bindingKind = 0
-    @State private var macroSlot: UInt8 = 0
-    @State private var playback: UInt8 = 0
-    @State private var media: UInt16 = 233
-    @State private var destination: UInt8 = 69
-    @State private var binding: [UInt8]?
+    @State private var binding: KeyAssignment?
+    @State private var draftBinding: KeyAssignment = .key(69)
+    @State private var undoBinding: KeyAssignment?
     @State private var busy = false
     @State private var status = ""
 
@@ -403,49 +499,16 @@ struct KeySettingsView: View {
                     Text(l("Temel")).tag(false)
                     Text("Fn").tag(true)
                 }
-                .onChange(of: fn) { binding = nil }
+                .onChange(of: fn) { resetAssignment() }
                 Picker(l("Fiziksel tuş"), selection: $source) {
                     ForEach(Self.keys.filter { Self.slots[$0.0] != nil }, id: \.0) { key in
                         Text(l(key.1)).tag(key.0)
                     }
                 }
-                .onChange(of: source) { binding = nil }
+                .onChange(of: source) { resetAssignment() }
                 if let binding {
-                    let key = Self.keys.first { binding == [0, 0, $0.0, 0] }
-                    let display = binding.allSatisfy { $0 == 0 } ? (fn ? l("Temel katman") : l("Devre dışı")) :
-                        binding[0] == 9 ? l.format("Makro %@", String(Int(binding[2]) + 1)) : l(key?.1 ?? "Özel atama")
-                    Text(l.format("Mevcut atama · %@", display))
-                }
-                Picker(l("Atama türü"), selection: $bindingKind) {
-                    Text(l("Tuş")).tag(0)
-                    Text(l("Makro")).tag(1)
-                    Text(l("Multimedya")).tag(2)
-                    Text(l(fn ? "Temel katmanı kullan" : "Devre dışı")).tag(3)
-                }
-                switch bindingKind {
-                case 0:
-                    Picker(l("Yeni tuş"), selection: $destination) {
-                        ForEach(Self.keys, id: \.0) { key in Text(l(key.1)).tag(key.0) }
-                    }
-                case 1:
-                    Picker(l("Makro"), selection: $macroSlot) {
-                        ForEach(0..<50) { slot in Text(l.format("Makro %@", String(slot + 1))).tag(UInt8(slot)) }
-                    }
-                    Picker(l("Çalma"), selection: $playback) {
-                        Text(l("Belirlenen tekrar sayısı")).tag(UInt8(0))
-                        Text(l("Aç / kapat")).tag(UInt8(1))
-                        Text(l("Basılı tutarken")).tag(UInt8(2))
-                    }
-                case 2:
-                    Picker(l("Multimedya"), selection: $media) {
-                        Text(l("Sesi artır")).tag(UInt16(233))
-                        Text(l("Sesi azalt")).tag(UInt16(234))
-                        Text(l("Sesi kapat")).tag(UInt16(226))
-                        Text(l("Oynat / duraklat")).tag(UInt16(205))
-                        Text(l("Sonraki parça")).tag(UInt16(181))
-                        Text(l("Önceki parça")).tag(UInt16(182))
-                    }
-                default: EmptyView()
+                    LabeledContent(l("Mevcut atama"), value: assignmentName(binding))
+                    assignmentEditor
                 }
             }
             .disabled(profile == nil || busy || selectedProfile != profile)
@@ -456,15 +519,23 @@ struct KeySettingsView: View {
                 Divider()
                 HStack(spacing: 10) {
                     if busy { ProgressView().controlSize(.small) }
-                    if !status.isEmpty {
-                        Text(l(status)).font(.callout).foregroundStyle(.secondary)
+                    if hasAssignmentChanges || !status.isEmpty {
+                        Text(l(hasAssignmentChanges ? "Uygulanmamış değişiklikler" : status))
+                            .font(.callout).foregroundStyle(.secondary)
                     }
                     Spacer(minLength: 12)
+                    if hasAssignmentChanges, let binding {
+                        Button(l("Taslağı sıfırla")) { draftBinding = binding }
+                            .disabled(busy || selectedProfile != profile)
+                    } else if undoBinding != nil {
+                        Button(l("Geri al")) { undoAssignment() }
+                            .disabled(binding == nil || busy || selectedProfile != profile)
+                    }
                     Button(l("Atamayı oku")) { loadBinding() }
                         .disabled(profile == nil || busy || selectedProfile != profile)
                     Button(l("Atamayı uygula")) { assignBinding() }
                         .buttonStyle(.borderedProminent)
-                        .disabled(binding == nil || busy || selectedProfile != profile)
+                        .disabled(!hasAssignmentChanges || busy || selectedProfile != profile)
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 12)
@@ -478,7 +549,7 @@ struct KeySettingsView: View {
         run("Etkin profil okundu.", operation: { try Keyboard.profile() }) { current in
             profile = current
             selectedProfile = current
-            binding = nil
+            resetAssignment()
         }
     }
 
@@ -487,31 +558,137 @@ struct KeySettingsView: View {
         run("Profil değiştirildi ve doğrulandı.", operation: { try Keyboard.selectProfile(target) }) { current in
             profile = current
             selectedProfile = current
-            binding = nil
+            resetAssignment()
         }
     }
 
+    private var hasAssignmentChanges: Bool {
+        guard let binding, draftBinding.kind != .custom else { return false }
+        return draftBinding != binding
+    }
+
+    @ViewBuilder
+    private var assignmentEditor: some View {
+        Picker(l("Atama türü"), selection: Binding(get: { draftBinding.kind }, set: selectKind)) {
+            Text(l("Tuş")).tag(KeyAssignment.Kind.key)
+            Text(l("Makro")).tag(KeyAssignment.Kind.macro)
+            Text(l("Multimedya")).tag(KeyAssignment.Kind.media)
+            Text(l(fn ? "Temel katmanı kullan" : "Devre dışı")).tag(KeyAssignment.Kind.disabled)
+            if binding?.kind == .custom {
+                Text(l("Özel atama")).tag(KeyAssignment.Kind.custom)
+            }
+        }
+        switch draftBinding {
+        case .key(let usage):
+            Picker(l("Yeni tuş"), selection: Binding(
+                get: { usage }, set: { draftBinding = .key($0) }
+            )) {
+                if !Self.keys.contains(where: { $0.0 == usage }) {
+                    Text(String(format: "HID 0x%02X", usage)).tag(usage)
+                }
+                ForEach(Self.keys, id: \.0) { key in Text(l(key.1)).tag(key.0) }
+            }
+        case .macro(let slot, let playback):
+            Picker(l("Makro"), selection: Binding(
+                get: { slot }, set: { draftBinding = .macro(slot: $0, playback: playback) }
+            )) {
+                ForEach(0..<50) { slot in Text(l.format("Makro %@", String(slot + 1))).tag(UInt8(slot)) }
+            }
+            Picker(l("Çalma"), selection: Binding(
+                get: { playback }, set: { draftBinding = .macro(slot: slot, playback: $0) }
+            )) {
+                Text(l("Belirlenen tekrar sayısı")).tag(UInt8(0))
+                Text(l("Aç / kapat")).tag(UInt8(1))
+                Text(l("Basılı tutarken")).tag(UInt8(2))
+            }
+        case .media(let usage):
+            Picker(l("Multimedya"), selection: Binding(
+                get: { usage }, set: { draftBinding = .media($0) }
+            )) {
+                if !KeyAssignment.mediaOptions.contains(where: { $0.0 == usage }) {
+                    Text(String(format: "HID 0x%04X", usage)).tag(usage)
+                }
+                ForEach(KeyAssignment.mediaOptions, id: \.0) { option in Text(l(option.1)).tag(option.0) }
+            }
+        case .disabled, .custom:
+            EmptyView()
+        }
+    }
+
+    private func selectKind(_ kind: KeyAssignment.Kind) {
+        if let binding, binding.kind == kind {
+            draftBinding = binding
+            return
+        }
+        switch kind {
+        case .key: draftBinding = .key(source)
+        case .macro: draftBinding = .macro(slot: 0, playback: 0)
+        case .media: draftBinding = .media(233)
+        case .disabled: draftBinding = .disabled
+        case .custom: break
+        }
+    }
+
+    private func assignmentName(_ value: KeyAssignment) -> String {
+        switch value {
+        case .key(let usage):
+            if let key = Self.keys.first(where: { $0.0 == usage }) { return l(key.1) }
+            return String(format: "HID 0x%02X", usage)
+        case .macro(let slot, _):
+            return l.format("Makro %@", String(Int(slot) + 1))
+        case .media(let usage):
+            if let option = KeyAssignment.mediaOptions.first(where: { $0.0 == usage }) { return l(option.1) }
+            return String(format: "HID 0x%04X", usage)
+        case .disabled:
+            return l(fn ? "Temel katman" : "Devre dışı")
+        case .custom:
+            return l("Özel atama")
+        }
+    }
+
+    private func resetAssignment() {
+        binding = nil
+        undoBinding = nil
+        draftBinding = .key(source)
+        status = ""
+    }
+
     private func loadBinding() {
-        guard let slot = Self.slots[source], let profile else { return }
+        guard !busy, let slot = Self.slots[source], let profile else { return }
         let layer = fn
-        run("Atama klavyeden okundu.", operation: { try Keyboard.keyBinding(slot: slot, expectedProfile: profile, fn: layer) }) {
-            binding = $0
-            destination = Self.keys.first { key in binding == [0, 0, key.0, 0] }?.0 ?? source
+        run("Atama klavyeden okundu.", operation: { try Keyboard.keyBinding(slot: slot, expectedProfile: profile, fn: layer) }) { bytes in
+            let current = KeyAssignment(bytes: bytes)
+            if binding != current { undoBinding = nil }
+            binding = current
+            draftBinding = current
         }
     }
 
     private func assignBinding() {
-        guard let slot = Self.slots[source], let profile, let previousBinding = binding else { return }
+        guard hasAssignmentChanges, let binding else { return }
+        writeAssignment(draftBinding, replacing: binding, isUndo: false)
+    }
+
+    private func undoAssignment() {
+        guard let undoBinding, let binding, !hasAssignmentChanges else { return }
+        writeAssignment(undoBinding, replacing: binding, isUndo: true)
+    }
+
+    private func writeAssignment(_ target: KeyAssignment, replacing previous: KeyAssignment, isUndo: Bool) {
+        guard !busy, let slot = Self.slots[source], let profile, selectedProfile == profile else { return }
         let layer = fn
-        let target: [UInt8] = switch bindingKind {
-        case 1: [9, playback, macroSlot, 0]
-        case 2: [3, 0, UInt8(truncatingIfNeeded: media), UInt8(media >> 8)]
-        case 3: [0, 0, 0, 0]
-        default: [0, 0, destination, 0]
+        let success = isUndo ? "Tuş ataması geri alındı." : "Tuş atandı ve klavyeden doğrulandı."
+        run(success, operation: {
+            try Keyboard.assignKey(
+                slot: slot, binding: target.bytes, expectedProfile: profile,
+                previousBinding: previous.bytes, fn: layer
+            )
+        }) { bytes in
+            let current = KeyAssignment(bytes: bytes)
+            binding = current
+            draftBinding = current
+            undoBinding = isUndo ? nil : previous
         }
-        run("Tuş atandı ve klavyeden doğrulandı.", operation: {
-            try Keyboard.assignKey(slot: slot, binding: target, expectedProfile: profile, previousBinding: previousBinding, fn: layer)
-        }) { binding = $0 }
     }
 
     private func run<T: Sendable>(
@@ -526,6 +703,7 @@ struct KeySettingsView: View {
                 status = success
             } catch {
                 binding = nil
+                undoBinding = nil
                 status = l.message(error)
             }
         }
