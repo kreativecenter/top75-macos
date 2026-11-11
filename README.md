@@ -5,16 +5,26 @@
   <a href="https://github.com/kreativecenter/top75-macos/releases"><img alt="GitHub releases" src="https://img.shields.io/github/v/release/kreativecenter/top75-macos?include_prereleases&amp;label=release"></a>
   <a href="#compatibility"><img alt="macOS 14 or later" src="https://img.shields.io/badge/macOS-14%2B-111827?logo=apple"></a>
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-22a06b"></a>
-  <p><a href="https://github.com/kreativecenter/top75-macos/releases"><strong>Download</strong></a> · <a href="#quick-start">Quick start</a> · <a href="#build-from-source">Build</a> · <a href="docs/README.tr.md">Türkçe</a></p>
+  <p><a href="https://github.com/kreativecenter/top75-macos/releases/latest/download/TOP75-macOS.dmg"><strong>Download DMG</strong></a> · <a href="#quick-start">Quick start</a> · <a href="#build-from-source">Build</a> · <a href="docs/README.tr.md">Türkçe</a></p>
 </div>
 
 ## Quick start
 
-1. Download **TOP75-macOS.zip** from [Releases](https://github.com/kreativecenter/top75-macos/releases) and extract **TOP75.app**.
+1. Open [**TOP75-macOS.dmg**](https://github.com/kreativecenter/top75-macos/releases/latest/download/TOP75-macOS.dmg) and drag **TOP75.app** to **Applications**. A [ZIP download](https://github.com/kreativecenter/top75-macos/releases/latest/download/TOP75-macOS.zip) is also available.
 2. Connect the keyboard with a **USB data cable**. Set its mode switch to **OFF** and check that the keyboard display shows **USB**.
 3. Open TOP75. **USB Connected** appears in the sidebar. Read the current setting, make your changes, and click the matching **Apply** button.
 
 **English and Türkçe** are available in **TOP75 → Settings** (⌘,). The app follows your Mac’s language by default and switches immediately when you choose a language. Press **⌘F** to search the built-in guide.
+
+## Screenshots
+
+**Lighting**
+
+![TOP75 Lighting panel with color swatches, brightness and speed controls](docs/assets/lighting.png)
+
+**Keys & Profiles**
+
+![TOP75 Keys and Profiles panel with the G key selected on the interactive keyboard](docs/assets/keys-profiles.png)
 
 ## What you can configure
 
@@ -31,7 +41,7 @@ Configuration runs locally over USB. The app reads back supported settings after
 ## Compatibility
 
 - **Keyboard** — Darmoshark TOP75, USB device ID **957**. The app checks the keyboard’s reported ID before reading or writing settings.
-- **Mac** — macOS **14 Sonoma** or later. The ZIP contains a universal build for Apple Silicon and Intel. Hardware testing has used an Apple Silicon Mac.
+- **Mac** — macOS **14 Sonoma** or later. The DMG and ZIP contain the same universal app for Apple Silicon and Intel. Hardware testing has used an Apple Silicon Mac.
 - **Connection** — use wired USB for configuration. Bluetooth and 2.4 GHz configuration are outside the current release.
 - **Release status** — check the release notes for signing and notarization status. Still-image transfer has been exercised on a TOP75. GIF playback needs further hardware verification. The app can export a settings snapshot. Restoring it, firmware flashing, live music or screen effects, and mouse-event macros remain open.
 
@@ -55,7 +65,7 @@ Build the app first. On a Mac with a **Developer ID Application** signing identi
 ./scripts/notarize.sh "Developer ID Application: Your Name (TEAMID)" "top75-notary"
 ```
 
-The script signs with the hardened runtime, waits for Apple's notarization decision, attaches the ticket to the app, and verifies Gatekeeper acceptance before packaging the distribution ZIP and its SHA-256 checksum. Configure the notarization profile locally with `xcrun notarytool store-credentials top75-notary`. See [Apple's notarization guide](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution).
+The script signs with the hardened runtime, waits for Apple's notarization decision, attaches the ticket to the app, and verifies Gatekeeper acceptance before packaging the distribution ZIP and its SHA-256 checksum. Configure the notarization profile locally with `xcrun notarytool store-credentials top75-notary`. To create a drag-to-install disk image from the notarized app, run `./scripts/dmg.sh /path/to/TOP75.app`. See [Apple's notarization guide](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution).
 
 ## Contribute
 
