@@ -135,6 +135,7 @@ enum Launch {
             precondition(Entry.search("rgb parlaklik").first?.title == "Parlaklık")
             precondition(Entry.search("    ").count == Entry.catalog.count)
             precondition(Entry.search("bilinmeyen-terim").isEmpty)
+            precondition(AppIcon.image() != nil, "The application icon is missing or unreadable.")
             let english = AppLanguage(code: "en")
             let turkish = AppLanguage(code: "tr")
             precondition(english("Aydınlatma") == "Lighting")
@@ -166,6 +167,9 @@ enum Launch {
 }
 
 struct TOP75App: App {
+    #if SWIFT_PACKAGE
+    @NSApplicationDelegateAdaptor(DevelopmentAppDelegate.self) private var appDelegate
+    #endif
     @AppStorage("interfaceLanguage") private var preference = LanguagePreference.system
 
     var body: some Scene {

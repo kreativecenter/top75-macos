@@ -33,7 +33,7 @@ Configuration runs locally over USB. The app reads back supported settings after
 - **Keyboard** — Darmoshark TOP75, USB device ID **957**. The app checks the keyboard’s reported ID before reading or writing settings.
 - **Mac** — macOS **14 Sonoma** or later. The ZIP contains a universal build for Apple Silicon and Intel. Hardware testing has used an Apple Silicon Mac.
 - **Connection** — use wired USB for configuration. Bluetooth and 2.4 GHz configuration are outside the current release.
-- **Release status** — releases are ad-hoc signed prereleases. Still-image transfer has been exercised on a TOP75. GIF playback needs further hardware verification. The app can export a settings snapshot. Restoring it, firmware flashing, live music or screen effects, and mouse-event macros remain open.
+- **Release status** — check the release notes for signing and notarization status. Still-image transfer has been exercised on a TOP75. GIF playback needs further hardware verification. The app can export a settings snapshot. Restoring it, firmware flashing, live music or screen effects, and mouse-event macros remain open.
 
 ## Build from source
 
@@ -46,6 +46,16 @@ cd top75-macos
 ```
 
 The build creates `dist/TOP75.app` and `dist/TOP75-macOS.zip`. It checks the signature, both languages, search, the keyboard diagram’s slot mapping, and the report, macro and image encoders. Open `Package.swift` in Xcode or run `swift run TOP75` for development.
+
+## Developer ID distribution
+
+Build the app first. On a Mac with a **Developer ID Application** signing identity and a notarization profile saved in Keychain, run:
+
+```sh
+./scripts/notarize.sh "Developer ID Application: Your Name (TEAMID)" "top75-notary"
+```
+
+The script signs with the hardened runtime, waits for Apple's notarization decision, attaches the ticket to the app, and verifies Gatekeeper acceptance before packaging the distribution ZIP and its SHA-256 checksum. Configure the notarization profile locally with `xcrun notarytool store-credentials top75-notary`. See [Apple's notarization guide](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution).
 
 ## Contribute
 

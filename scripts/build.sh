@@ -22,8 +22,8 @@ for language in en tr; do
   ditto "$project_dir/Sources/TOP75/Resources/$language.lproj" "$app_dir/Contents/Resources/$language.lproj"
 done
 cp "$project_dir/LICENSE" "$app_dir/Contents/Resources/LICENSE"
-cp "$project_dir/Resources/AppIcon.icns" "$app_dir/Contents/Resources/AppIcon.icns"
-codesign --force --sign "${TOP75_SIGNING_IDENTITY:--}" "$app_dir"
+cp "$project_dir/Sources/TOP75/Resources/AppIcon.icns" "$app_dir/Contents/Resources/AppIcon.icns"
+codesign --force --sign - "$app_dir"
 codesign --verify --strict "$app_dir"
 "$app_dir/Contents/MacOS/TOP75" --verify
 
