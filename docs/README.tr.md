@@ -1,6 +1,6 @@
-# macOS için TOP75
+# Darmoshark TOP75 macOS uygulaması
 
-Darmoshark TOP75’i USB ve Bluetooth üzerinden yapılandıran açık kaynak macOS uygulaması.
+Darmoshark TOP75 için ücretsiz ve açık kaynak Mac uygulaması. RGB rengini değiştir, tuşları yeniden ata, makro düzenle, ışığın kapanacağı saatleri seç ve klavye ekranına görsel yükle. Apple Silicon ve Intel Mac’lerde macOS 14 ve üzerini destekler.
 
 **[DMG indir](https://github.com/kreativecenter/top75-macos/releases/latest/download/TOP75-macOS.dmg) · [İngilizce README](../README.md) · [Protokol notları](protocol.md)**
 
@@ -19,6 +19,16 @@ Mac’te **TOP75 BT3.0** ile eşleş ve TOP75’i aç. Kenar çubuğunda **Bluet
 ### Işık kapatma aralığı
 
 Kenar çubuğundaki **Zamanlama** panelinde günlük başlangıç ve bitiş saatlerini seç. Örneğin 23.00–08.00 arasında klavyenin ışığı kapanır ve 08.00’de önceki efekt geri gelir. Pencere kapalıyken uygulama çalışmaya devam eder. İstersen **Oturum açınca TOP75’i başlat** seçeneğini aç. Işığı erkenden geri getirmek için **Bu aralığı atla** düğmesini kullan. Uygulamanın değişikliği yapabilmesi için klavyenin USB veya Bluetooth ile bağlı olması gerekir.
+
+## Sık sorulan sorular
+
+### TOP75’in RGB ışığını Mac’te Bluetooth üzerinden değiştirebilir miyim?
+
+Evet. **TOP75 BT3.0** ile eşleş, **Giriş İzleme** iznini ver ve **Aydınlatma** panelini aç. Efektleri ve tuş renklerini buradan uygulayabilirsin. [Bluetooth kurulum adımları](#bluetooth-ile-bağlan)
+
+### Klavye Bluetooth ile bağlıyken uygulama neden “USB bağlantısı yok” diyor?
+
+**TOP75 → TOP75 Hakkında** menüsünden sürüme bak. Bluetooth aydınlatması **0.7.0** ile, profil, tuş ataması ve makro gibi diğer Bluetooth özellikleri **0.8.0** ile eklendi. Dock eski bir kopyayı açarsa **Finder → Uygulamalar → TOP75** üzerinden aç. [En yeni Mac sürümünü indir](https://github.com/kreativecenter/top75-macos/releases/latest)
 
 ## Ekran görüntüleri
 
@@ -53,3 +63,5 @@ Kenar çubuğundaki **Zamanlama** panelinde günlük başlangıç ve bitiş saat
 Apple Silicon ve Intel için derlenen uygulama macOS 14 ve üstünü hedefler. DMG ve ZIP, aynı imzalı ve Apple noter onaylı uygulamayı içerir. Uygulama TOP75 kimliği **957** olan modeli doğrular. Sabit görsel yükleme, toplu tuş rengi yazma ve seçmeli JSON geri yükleme fiziksel klavyede doğrulandı. GIF oynatma için fiziksel doğrulama bekleniyor. Geri yükleme için yedek ile klavyenin firmware sürümü eşleşmeli. Eski yedeklerde Fn atamaları, kaydın alındığı etkin profil için kullanılabilir. JSON kaydı makro içeriğini ve ekran görsellerini kapsamaz. Firmware güncelleme, müzik ve ekran eşleme ile fare olaylı makrolar henüz yok.
 
 Xcode ve Swift 6 ile depoda `./scripts/build.sh` çalıştırarak dağıtım paketini oluşturabilirsin. Kaynak kodu [MIT lisansı](../LICENSE) ile yayımlanır.
+
+Geliştirici Bedirhan Samsa. [GitHub](https://github.com/BEDIRHANSAMSA) · [X’te @bedirhansamsa](https://x.com/bedirhansamsa)

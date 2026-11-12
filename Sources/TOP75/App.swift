@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct Entry: Identifiable, Hashable {
@@ -234,6 +235,16 @@ struct TOP75App: App {
                 .environment(\.locale, Locale(identifier: preference.language.code))
         }
         .defaultSize(width: 1060, height: 735)
+        .commands {
+            CommandGroup(after: .help) {
+                Button(preference.language("GitHub’da TOP75")) {
+                    NSWorkspace.shared.open(URL(string: "https://github.com/kreativecenter/top75-macos")!)
+                }
+                Button(preference.language.format("X’te %@", "@bedirhansamsa")) {
+                    NSWorkspace.shared.open(URL(string: "https://x.com/bedirhansamsa")!)
+                }
+            }
+        }
         Settings {
             PreferencesView(preference: $preference)
                 .environment(\.appLanguage, preference.language)

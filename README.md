@@ -1,28 +1,46 @@
 <div align="center">
   <img src="docs/assets/top75.png" alt="TOP75 for macOS app icon" width="112">
-  <h1>TOP75 for macOS</h1>
-  <p>Set up your Darmoshark TOP75 from a native Mac app.</p>
+  <h1>Darmoshark TOP75 for macOS</h1>
   <a href="https://github.com/kreativecenter/top75-macos/releases"><img alt="GitHub releases" src="https://img.shields.io/github/v/release/kreativecenter/top75-macos?include_prereleases&amp;label=release"></a>
   <a href="#compatibility"><img alt="macOS 14 or later" src="https://img.shields.io/badge/macOS-14%2B-111827?logo=apple"></a>
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-22a06b"></a>
-  <p><a href="https://github.com/kreativecenter/top75-macos/releases/latest/download/TOP75-macOS.dmg"><strong>Download DMG</strong></a> · <a href="#quick-start">Quick start</a> · <a href="#build-from-source">Build</a> · <a href="docs/README.tr.md">Türkçe</a></p>
+  <p><a href="https://github.com/kreativecenter/top75-macos/releases/latest/download/TOP75-macOS.dmg"><strong>Download DMG</strong></a> · <a href="#download-and-install-on-mac">Install on Mac</a> · <a href="#build-from-source">Build</a> · <a href="docs/README.tr.md">Türkçe</a></p>
 </div>
 
-## Quick start
+A free, open-source Mac app for the Darmoshark TOP75 mechanical keyboard. Use it to change RGB lighting, remap keys, edit macros, set a daily lights-off schedule, and upload images or GIFs to the keyboard display. Connect over USB or TOP75 BT3.0. The app runs on macOS 14 or later on Apple Silicon and Intel Macs.
 
-1. Open [**TOP75-macOS.dmg**](https://github.com/kreativecenter/top75-macos/releases/latest/download/TOP75-macOS.dmg) and drag **TOP75.app** to **Applications**. A [ZIP download](https://github.com/kreativecenter/top75-macos/releases/latest/download/TOP75-macOS.zip) is also available.
-2. Connect the keyboard with a **USB data cable**. Set its mode switch to **OFF** and check that the keyboard display shows **USB**.
-3. Open TOP75. **USB Connected** appears in the sidebar. Read the current setting, make your changes, and click the matching **Apply** button.
+## Download and install on Mac
 
-**English and Türkçe** are available in **TOP75 → Settings** (⌘,). The app follows your Mac’s language by default and switches immediately when you choose a language. Press **⌘F** to search the guide and open the matching panel. Use **Connection Help** in the sidebar for USB setup.
+Open [**TOP75-macOS.dmg**](https://github.com/kreativecenter/top75-macos/releases/latest/download/TOP75-macOS.dmg) and drag **TOP75.app** to **Applications**. A [ZIP download](https://github.com/kreativecenter/top75-macos/releases/latest/download/TOP75-macOS.zip) is also available.
+
+### Connect over USB
+
+Connect the keyboard with a **USB data cable**. Set its mode switch to **OFF** and check that the keyboard display shows **USB**.
+Open TOP75. **USB Connected** appears in the sidebar. Read the current setting, make your changes, and click the matching **Apply** button.
 
 ### Connect over Bluetooth
 
 Pair **TOP75 BT3.0** with your Mac and open TOP75. Click **Allow Bluetooth access** in the sidebar and enable TOP75 in **System Settings → Privacy & Security → Input Monitoring**. Reopen the app if macOS asks. Use Bluetooth for lighting, profiles, key assignments, macros, and device settings, including JSON backup and restore. Connect over USB to upload display artwork.
 
+**English and Türkçe** are available in **TOP75 → Settings** (⌘,). Press **⌘F** to search the in-app guide.
+
 ### Schedule lights off
 
 In the **Schedule** sidebar panel, choose a daily start and end time, such as 23:00–08:00. TOP75 turns the keyboard lighting off and brings back the previous effect when the interval ends. Close the window to keep the app running, or enable **Start TOP75 at login** to start it automatically. **Skip this interval** brings the lighting back early. The keyboard needs an active USB or Bluetooth connection for TOP75 to apply the change.
+
+## Frequently asked questions
+
+### Can I change the TOP75 RGB lighting over Bluetooth on Mac?
+
+Yes. Pair **TOP75 BT3.0**, grant TOP75 **Input Monitoring** access, then open **Lighting** to apply an effect or set individual key colors. Profiles, remapping, macros, and device settings also work over this connection. [Bluetooth setup](#connect-over-bluetooth)
+
+### Why does TOP75 say “USB Disconnected” when my keyboard is paired?
+
+Open **TOP75 → About TOP75** to check which version is running. Bluetooth lighting arrived in **0.7.0**, and the other Bluetooth configuration panels arrived in **0.8.0**. If the Dock opens an older copy, launch **TOP75** from **Finder → Applications**. Once paired, the sidebar shows **Bluetooth connected**. [Download the latest Mac release](https://github.com/kreativecenter/top75-macos/releases/latest)
+
+### How do I upload a GIF to the TOP75 display?
+
+Connect the keyboard with a USB data cable and select **Display**. Drop in a GIF to preview the 128 × 128 animation, adjust the framing, and upload up to 25 frames. Still PNG and JPEG images can be sent to one of five slots.
 
 ## Screenshots
 
@@ -89,6 +107,6 @@ The script signs with the hardened runtime, waits for Apple's notarization decis
 
 [Open an issue](https://github.com/kreativecenter/top75-macos/issues/new) with the app version, macOS version, connection type and steps to reproduce. Read the [protocol and hardware notes](docs/protocol.md) before changing device commands. UI translations are in `Sources/TOP75/Resources`.
 
-The app is maintained by [Bedirhan Samsa](https://github.com/BEDIRHANSAMSA) under the [MIT license](LICENSE). Darmoshark and TOP75 identify the compatible hardware. This community project has no vendor affiliation.
+Bedirhan Samsa maintains this community project. It has no vendor affiliation. [Bedirhan on GitHub](https://github.com/BEDIRHANSAMSA) · [@bedirhansamsa on X](https://x.com/bedirhansamsa) · [MIT license](LICENSE)
 
 The [sharkfin protocol documentation](https://github.com/dniminenn/sharkfin/blob/master/docs/PROTOCOL.md) was used to cross-check the USB report format.
