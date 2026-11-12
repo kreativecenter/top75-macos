@@ -2,6 +2,17 @@ import Foundation
 import ImageIO
 
 enum Verification {
+    static func verifyBluetoothLighting() {
+        let identity = Keyboard.report([0x8F], checksumIndex: 7)
+        let packet = BluetoothLighting.packet(for: identity)
+        precondition(packet.count == 66 && Array(packet.prefix(3)) == [6, 0x55, 0x8F] && packet[9] == 0x70)
+        precondition(packet.withUnsafeBufferPointer { BluetoothLighting.payload(report: $0, id: 6) } == identity)
+        precondition(packet.withUnsafeBufferPointer { BluetoothLighting.payload(report: $0, id: 1) } == nil)
+        var event = packet
+        event[1] = 0x66
+        precondition(event.withUnsafeBufferPointer { BluetoothLighting.payload(report: $0, id: 6) } == nil)
+    }
+
     static func verifyRestore() throws {
         let blank = Array(repeating: [UInt8](repeating: 0, count: 4), count: 128)
         let lighting = Lighting(effect: 1, speed: 2, brightness: 3, flags: 7, rgb: 0x10A0FF)

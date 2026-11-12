@@ -294,3 +294,13 @@
 "Bu eski yedekte Fn atamaları, kaydın alındığı etkin profil için kullanılabilir." = "This older backup supplies Fn assignments for the profile that was active when it was saved.";
 "Fn · Profil 2 ve 3" = "Fn · Profiles 2 and 3";
 "Profil 2 ve 3 aynı Fn katmanını kullanır." = "Profiles 2 and 3 share this Fn layer.";
+"TOP75 BT3.0 bağlantısı bulunamadı." = "The TOP75 BT3.0 connection was unavailable.";
+"Bluetooth aydınlatması için TOP75’e Giriş İzleme izni ver." = "Allow Input Monitoring for TOP75 to control lighting over Bluetooth.";
+"TOP75, Bluetooth ayar sorgusuna yanıt vermedi. Klavyeyi uyandırıp tekrar dene." = "TOP75 did not answer over Bluetooth. Wake the keyboard and try again.";
+"Bluetooth erişimi" = "Bluetooth access";
+"Bluetooth komutu gönderme" = "Send Bluetooth command";
+"Bluetooth bağlı" = "Bluetooth connected";
+"Klavye bağlantısı yok" = "Keyboard disconnected";
+"Aydınlatma erişimine izin ver" = "Allow lighting access";
+"Bu bölüm için USB bağlantısı gerekli." = "Connect the keyboard over USB for this section.";
+"TOP75’i USB veya Bluetooth ile bağla." = "Connect TOP75 over USB or Bluetooth.";

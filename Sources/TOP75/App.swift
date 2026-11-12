@@ -203,9 +203,10 @@ enum Launch {
             precondition(pixels.count == 32_768 && pixels.prefix(6) == [0, 31, 248, 0, 0, 31])
             precondition(Entry.search("restore backup", language: english).first?.destination == .device)
             precondition(english("Geri yükleme önizlemesi") == "Restore preview")
+            Verification.verifyBluetoothLighting()
             try! Verification.verifyRestore()
             try! Verification.verifyArtwork()
-            print("Localization, guide, layout, HID, macro, restore and GIF/RGB565 checks passed.")
+            print("Localization, guide, layout, USB and Bluetooth HID, macro, restore and GIF/RGB565 checks passed.")
             return
         }
         TOP75App.main()
@@ -250,7 +251,8 @@ struct LightingView: View {
         return language.format("Mevcut efekt (%@)", String(effect))
     }
 
-    let connected: Bool
+    @Binding var connection: LightingConnection?
+    let bluetoothNeedsPermission: Bool
     let isActive: Bool
     let settingsRevision: Int
 
@@ -272,6 +274,8 @@ struct LightingView: View {
     @State private var status = ""
     @State private var hasError = false
 
+    private var connected: Bool { connection != nil }
+
     var body: some View {
         Form {
             Section {
@@ -284,7 +288,7 @@ struct LightingView: View {
                 .disabled(busy || keyColorDraft.action.busy)
             }
             if perKey {
-                KeyColorControls(palette: $palette, connected: connected, modeActive: confirmed?.effect == 66, onActivate: {
+                KeyColorControls(palette: $palette, connection: $connection, modeActive: confirmed?.effect == 66, onActivate: {
                     write(Lighting(effect: 66, speed: 0, brightness: 0, flags: 7, rgb: 0), keepEffectDraft: true)
                 }, draft: $keyColorDraft)
                 .disabled(busy)
@@ -303,15 +307,13 @@ struct LightingView: View {
             keyColorDraft.undo = [:]
             if connected { read() }
         }
-        .onChange(of: connected, initial: true) { _, available in
-            if !available {
-                confirmed = nil
-                undoLighting = nil
-                palette = []
-                keyColorDraft.undo = [:]
-            } else if confirmed == nil {
-                read()
-            }
+        .onChange(of: connection, initial: true) {
+            confirmed = nil
+            undoLighting = nil
+            palette = []
+            keyColorDraft.undo = [:]
+            status = ""
+            if connected { read() }
         }
     }
 
@@ -382,7 +384,8 @@ struct LightingView: View {
     }
 
     private var actionStatus: String {
-        if !connected { return "Uygulamak için TOP75’i USB ile bağla." }
+        if bluetoothNeedsPermission { return "Bluetooth aydınlatması için TOP75’e Giriş İzleme izni ver." }
+        if !connected { return "TOP75’i USB veya Bluetooth ile bağla." }
         if hasChanges && !hasError { return "Uygulanmamış değişiklikler" }
         return status
     }
@@ -433,9 +436,11 @@ struct LightingView: View {
     }
 
     private func read() {
-        guard connected, !busy else { return }
+        guard let transport = connection, !busy else { return }
         let pending = hasChanges ? requestedLighting : nil
-        run("TOP75 bağlı. Aydınlatma ayarı okundu.", operation: { try Keyboard.lighting() }) { current in
+        run("TOP75 bağlı. Aydınlatma ayarı okundu.", using: transport, operation: {
+            try Keyboard.lighting(connection: transport)
+        }) { current in
             if confirmed != current { undoLighting = nil }
             accept(current)
             if let pending { load(pending) }
@@ -470,11 +475,14 @@ struct LightingView: View {
     }
 
     private func write(_ requested: Lighting, isUndo: Bool = false, keepEffectDraft: Bool = false) {
-        guard connected, !busy else { return }
+        guard let transport = connection, !busy else { return }
         let previous = confirmed
         let pending = keepEffectDraft && hasChanges ? requestedLighting : nil
         let success = isUndo ? "Aydınlatma geri alındı." : "Aydınlatma uygulandı ve klavyeden doğrulandı."
-        run(success, operation: { try Keyboard.apply(requested, replacing: previous ?? Keyboard.lighting()) }) { current in
+        run(success, using: transport, operation: {
+            let current = try previous ?? Keyboard.lighting(connection: transport)
+            return try Keyboard.apply(requested, replacing: current, connection: transport)
+        }) { current in
             undoLighting = isUndo ? nil : previous
             accept(current)
             if let pending { load(pending) }
@@ -500,6 +508,7 @@ struct LightingView: View {
 
     private func run(
         _ success: String,
+        using transport: LightingConnection,
         operation: @escaping @Sendable () throws -> Lighting,
         update: @escaping (Lighting) -> Void
     ) {
@@ -507,11 +516,17 @@ struct LightingView: View {
         status = ""
         hasError = false
         Task {
-            defer { busy = false }
+            defer {
+                busy = false
+                if connection != transport { read() }
+            }
             do {
-                update(try await Task.detached(operation: operation).value)
+                let value = try await Task.detached(operation: operation).value
+                guard connection == transport else { return }
+                update(value)
                 status = success
             } catch {
+                guard connection == transport else { return }
                 confirmed = nil
                 undoLighting = nil
                 hasError = true

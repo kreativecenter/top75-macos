@@ -46,24 +46,30 @@ extension Keyboard {
         return DeviceOptions(debounce: debounce, automaticOS: automaticOS, timers: timers)
     }
 
-    static func keyColors() throws -> [UInt32] {
-        try withDevice { try readKeyColors($0) }
+    static func keyColors(connection: LightingConnection = .usb) throws -> [UInt32] {
+        try withLightingAccess(connection) { try readKeyColors($0) }
     }
 
     static func setKeyColors(
-        _ changes: [UInt8: UInt32], previous: [UInt32],
+        _ changes: [UInt8: UInt32], previous: [UInt32], connection: LightingConnection = .usb,
         progress: @Sendable (Double) -> Void = { _ in }
     ) throws -> [UInt32] {
-        try withDevice { try setKeyColors($0, changes: changes, previous: previous, progress: progress) }
+        try withLightingAccess(connection) { try setKeyColors($0, changes: changes, previous: previous, progress: progress) }
     }
 
     static func setKeyColors(
         _ device: IOHIDDevice, changes: [UInt8: UInt32], previous: [UInt32],
         progress: (Double) -> Void = { _ in }
     ) throws -> [UInt32] {
+        try setKeyColors(lightingAccess(device), changes: changes, previous: previous, progress: progress)
+    }
+
+    private static func setKeyColors(
+        _ access: LightingAccess, changes: [UInt8: UInt32], previous: [UInt32], progress: (Double) -> Void
+    ) throws -> [UInt32] {
         guard previous.count == 128, changes.allSatisfy({ $0.key < 128 && $0.value <= 0xFFFFFF })
         else { throw KeyboardError.invalidReply }
-        let observed = try readKeyColors(device)
+        let observed = try readKeyColors(access)
         guard changes.keys.allSatisfy({ observed[Int($0)] == previous[Int($0)] }) else {
             throw KeyboardError.mismatch
         }
@@ -71,17 +77,21 @@ extension Keyboard {
         for (index, entry) in pending.enumerated() {
             let (slot, rgb) = entry
             let bytes = [UInt8(rgb >> 16), UInt8(truncatingIfNeeded: rgb >> 8), UInt8(truncatingIfNeeded: rgb)]
-            try writeSetting(device, report([0x14, 0, slot, 0, 0, 0, 0, 0] + bytes, checksumIndex: 7))
+            try access.writeSetting(report([0x14, 0, slot, 0, 0, 0, 0, 0] + bytes, checksumIndex: 7))
             progress(0.95 * Double(index + 1) / Double(pending.count))
         }
-        let current = try readKeyColors(device)
+        let current = try readKeyColors(access)
         guard changes.allSatisfy({ current[Int($0.key)] == $0.value }) else { throw KeyboardError.mismatch }
         progress(1)
         return current
     }
 
     static func readKeyColors(_ device: IOHIDDevice) throws -> [UInt32] {
-        let bytes = try readPages(device, opcode: 0x8C, index: 0, count: 6)
+        try readKeyColors(lightingAccess(device))
+    }
+
+    private static func readKeyColors(_ access: LightingAccess) throws -> [UInt32] {
+        let bytes = try (UInt8(0)..<6).flatMap { try access.request(0x8C, [0, $0], false) }
         return stride(from: 0, to: bytes.count, by: 3).map {
             UInt32(bytes[$0]) << 16 | UInt32(bytes[$0 + 1]) << 8 | UInt32(bytes[$0 + 2])
         }

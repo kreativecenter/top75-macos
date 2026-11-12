@@ -28,3 +28,9 @@ JSON restore compares the backup with current settings on the same firmware. It 
 On firmware 274, the second per-key color command was dropped at 250 ms between writes. Both colors read back at 500 ms and 750 ms. The app now waits 600 ms after settings writes and reports progress during batch color updates. The physical test round-tripped two RGB slots, then selectively restored a base assignment, a shared Fn assignment, debounce and a color. The active profile and automatic OS detection stayed at their original values. The test restored the original configuration and read it back.
 
 The display preview decodes the same RGB565 frames passed to the uploader. Automated checks cover version 1 and 2 backup selection and the fit/crop rendering of a two-frame GIF.
+
+## Bluetooth lighting
+
+The paired TOP75 BT3.0 reports VID `0x3151`, PID `0x4012` and vendor report ID 6 on usage page `0xFF66`. Send a 66-byte output report with prefix `06 55` followed by the 64-byte command. The checksum covers the command bytes. Replies arrive on the input report callback with the same prefix. The app filters for report ID 6 and marker `0x55` before accepting a reply, then checks device ID 957 before accessing lighting.
+
+On firmware 274, the app read back and reverted a two-key color batch and a global brightness change over Bluetooth. The Bluetooth transport is used by the Lighting panel. macOS requires Input Monitoring permission to open this keyboard interface.

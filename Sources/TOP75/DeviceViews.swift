@@ -47,11 +47,13 @@ struct KeyColorDraft {
 struct KeyColorControls: View {
     @Environment(\.appLanguage) private var l
     @Binding var palette: [UInt32]
-    let connected: Bool
+    @Binding var connection: LightingConnection?
     let modeActive: Bool
     var onActivate: () -> Void
     @Binding var draft: KeyColorDraft
     private let transfer = WorkspaceTransfer.shared
+
+    private var connected: Bool { connection != nil }
 
     var body: some View {
         Section(l("Tuş başına renk")) {
@@ -88,9 +90,7 @@ struct KeyColorControls: View {
             if !draft.action.status.isEmpty { Text(l(draft.action.status)).foregroundStyle(.secondary) }
         }
         .disabled(draft.action.busy)
-        .onChange(of: connected, initial: true) { _, available in
-            if available && palette.isEmpty && !draft.action.busy { load() }
-        }
+        .onChange(of: connection, initial: true) { load() }
         .onChange(of: palette) {
             if palette.isEmpty { draft.undo = [:] }
         }
@@ -125,7 +125,8 @@ struct KeyColorControls: View {
     }
 
     private func load() {
-        run("Tuş renkleri okundu.", operation: { try Keyboard.keyColors() }) { current in
+        guard let transport = connection, !draft.action.busy else { return }
+        run("Tuş renkleri okundu.", using: transport, operation: { try Keyboard.keyColors(connection: transport) }) { current in
             if current != palette { draft.undo = [:] }
             draft.changes = draft.changes.filter { current[Int($0.key)] != $0.value }
         }
@@ -133,10 +134,10 @@ struct KeyColorControls: View {
 
     private func save(_ requested: [UInt8: UInt32], isUndo: Bool) {
         let previous = palette
-        guard previous.count == 128, !requested.isEmpty,
+        guard let transport = connection, previous.count == 128, !requested.isEmpty,
               let id = transfer.start(.lighting, title: "Tuş renkleri yazılıyor") else { return }
-        run(isUndo ? "Tuş renkleri geri alındı." : "Tuş renkleri yazıldı ve doğrulandı.", transferID: id, operation: {
-            try Keyboard.setKeyColors(requested, previous: previous) { value in
+        run(isUndo ? "Tuş renkleri geri alındı." : "Tuş renkleri yazıldı ve doğrulandı.", using: transport, transferID: id, operation: {
+            try Keyboard.setKeyColors(requested, previous: previous, connection: transport) { value in
                 Task { @MainActor in transfer.update(id, progress: value) }
             }
         }) { _ in
@@ -146,7 +147,7 @@ struct KeyColorControls: View {
     }
 
     private func run(
-        _ success: String, transferID: UUID? = nil,
+        _ success: String, using transport: LightingConnection, transferID: UUID? = nil,
         operation: @escaping @Sendable () throws -> [UInt32], update: @escaping ([UInt32]) -> Void
     ) {
         draft.action.busy = true
@@ -154,9 +155,12 @@ struct KeyColorControls: View {
         draft.action.perform(operation) { result in
             if let transferID { transfer.finish(transferID) }
             draft.action.busy = false
+            guard connection == transport else {
+                load()
+                return
+            }
             switch result {
             case .success(let current):
-                guard connected else { return }
                 update(current)
                 palette = current
                 draft.action.status = success

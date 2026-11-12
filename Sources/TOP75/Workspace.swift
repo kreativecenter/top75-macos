@@ -141,6 +141,8 @@ struct WorkspaceView: View {
     @State private var connectionHelp = 0
     private let transfer = WorkspaceTransfer.shared
     @State private var connected = false
+    @State private var bluetoothDetected = false
+    @State private var lightingConnection: LightingConnection?
 
     private var selection: Binding<WorkspacePage?> {
         Binding(get: { storedPage }, set: { if let page = $0 { storedPage = page } })
@@ -171,14 +173,18 @@ struct WorkspaceView: View {
                     VStack(alignment: .leading, spacing: 3) {
                         Text("Darmoshark TOP75").font(.subheadline.weight(.semibold))
                         HStack(spacing: 5) {
-                            Circle().fill(connected ? Color.green : Color.secondary)
+                            Circle().fill(connected || bluetoothDetected ? Color.green : Color.secondary)
                                 .frame(width: 6, height: 6)
                                 .accessibilityHidden(true)
-                            Text(l(connected ? "USB bağlı" : "USB bağlantısı yok"))
+                            Text(l(connectionStatus))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
-                        if !connected {
+                        if bluetoothDetected && lightingConnection == nil {
+                            Button(l("Aydınlatma erişimine izin ver"), action: allowBluetoothLighting)
+                                .buttonStyle(.link)
+                                .font(.caption)
+                        } else if !connected && !bluetoothDetected {
                             Button(l("Bağlantı yardımı")) {
                                 storedPage = .guide
                                 connectionHelp += 1
@@ -198,6 +204,11 @@ struct WorkspaceView: View {
                     Text(l(storedPage.title)).font(.largeTitle.bold())
                         .accessibilityAddTraits(.isHeader)
                     Text(l(storedPage.subtitle)).foregroundStyle(.secondary)
+                    if bluetoothDetected && storedPage != .lighting && storedPage != .guide {
+                        Label(l("Bu bölüm için USB bağlantısı gerekli."), systemImage: "cable.connector")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 .frame(maxWidth: 740, alignment: .leading)
                 .frame(maxWidth: .infinity)
@@ -258,10 +269,32 @@ struct WorkspaceView: View {
         .onChange(of: storedPage, initial: true) { mountedPages.insert(storedPage) }
         .task {
             while !Task.isCancelled {
-                connected = Keyboard.hasUSBInterface()
+                refreshConnection()
                 try? await Task.sleep(for: .seconds(2))
             }
         }
+    }
+
+    private var connectionStatus: String {
+        if connected { return "USB bağlı" }
+        if bluetoothDetected { return "Bluetooth bağlı" }
+        return "Klavye bağlantısı yok"
+    }
+
+    private func refreshConnection() {
+        let usb = Keyboard.hasUSBInterface()
+        let bluetooth = !usb && BluetoothLighting.isConnected()
+        connected = usb
+        bluetoothDetected = bluetooth
+        lightingConnection = usb ? .usb : bluetooth && BluetoothLighting.hasAccess ? .bluetooth : nil
+    }
+
+    private func allowBluetoothLighting() {
+        if !BluetoothLighting.requestAccess(),
+           let settings = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
+            NSWorkspace.shared.open(settings)
+        }
+        refreshConnection()
     }
 
     private func sidebarRow(_ page: WorkspacePage) -> some View {
@@ -272,7 +305,10 @@ struct WorkspaceView: View {
     private func content(_ page: WorkspacePage) -> some View {
         switch page {
         case .lighting:
-            LightingView(connected: connected, isActive: storedPage == .lighting, settingsRevision: transfer.settingsRevision)
+            LightingView(
+                connection: $lightingConnection, bluetoothNeedsPermission: bluetoothDetected && lightingConnection == nil,
+                isActive: storedPage == .lighting, settingsRevision: transfer.settingsRevision
+            )
                 .disabled(transfer.isBusy)
         case .keys:
             KeySettingsView(connected: connected, settingsRevision: transfer.settingsRevision)

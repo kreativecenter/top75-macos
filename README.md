@@ -16,6 +16,10 @@
 
 **English and Türkçe** are available in **TOP75 → Settings** (⌘,). The app follows your Mac’s language by default and switches immediately when you choose a language. Press **⌘F** to search the guide and open the matching panel. Use **Connection Help** in the sidebar for USB setup.
 
+### Bluetooth lighting
+
+Pair **TOP75 BT3.0** with your Mac and open **Lighting**. Click **Allow lighting access** in the sidebar and enable TOP75 in **System Settings → Privacy & Security → Input Monitoring**. Reopen the app if macOS asks. You can apply effects or per-key colors from the Lighting panel. Key assignments, macros, display uploads and device settings use USB.
+
 ## Screenshots
 
 **Lighting**
@@ -45,13 +49,13 @@
 | **Display** | Drop a PNG, JPEG or GIF and preview the 128 × 128 output with Fit or Centre Crop. Send stills to one of five slots or upload a GIF with up to 25 frames. Upload progress stays visible when switching panels. |
 | **Device Settings** | Adjust debounce, automatic OS detection, and the Bluetooth and 2.4 GHz sleep timers. Export a JSON backup. Compare it with the keyboard and restore selected key assignments, colors and device settings. |
 
-Configuration runs locally over USB. The app reads back supported settings after writes and shows the result. Effects, per-key colors and key assignments support undo after a verified change. JSON restore requires the same firmware as the backup. Older JSON backups supply Fn assignments for the profile that was active when they were saved. Profile names are stored on the Mac. Macro contents and display artwork are outside the JSON format.
+Configuration runs locally. Lighting can also use the TOP75 BT3.0 connection. The app reads back supported settings after writes and shows the result. Effects, per-key colors and key assignments support undo after a verified change. JSON restore requires the same firmware as the backup. Older JSON backups supply Fn assignments for the profile that was active when they were saved. Profile names are stored on the Mac. Macro contents and display artwork are outside the JSON format.
 
 ## Compatibility
 
 - **Keyboard** — Darmoshark TOP75, USB device ID **957**. The app checks the keyboard’s reported ID before reading or writing settings.
 - **Mac** — macOS **14 Sonoma** or later. The DMG and ZIP contain the same universal app for Apple Silicon and Intel. Hardware testing has used an Apple Silicon Mac.
-- **Connection** — use wired USB for configuration. Bluetooth and 2.4 GHz configuration are outside the current release.
+- **Connection** — wired USB supports every panel. TOP75 BT3.0 supports the Lighting panel with Input Monitoring permission.
 - **Release status** — check the release notes for signing and notarization status. Still-image upload, batch color writes and selective JSON restore were verified on a wired TOP75. On-device GIF playback still needs physical validation. Firmware flashing, live music or screen effects, and mouse-event macros remain open.
 
 ## Build from source
