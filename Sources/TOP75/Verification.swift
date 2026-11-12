@@ -2,15 +2,36 @@ import Foundation
 import ImageIO
 
 enum Verification {
-    static func verifyBluetoothLighting() {
+    static func verifyBluetoothKeyboard() {
         let identity = Keyboard.report([0x8F], checksumIndex: 7)
-        let packet = BluetoothLighting.packet(for: identity)
+        let packet = BluetoothKeyboard.packet(for: identity)
         precondition(packet.count == 66 && Array(packet.prefix(3)) == [6, 0x55, 0x8F] && packet[9] == 0x70)
-        precondition(packet.withUnsafeBufferPointer { BluetoothLighting.payload(report: $0, id: 6) } == identity)
-        precondition(packet.withUnsafeBufferPointer { BluetoothLighting.payload(report: $0, id: 1) } == nil)
+        precondition(packet.withUnsafeBufferPointer { BluetoothKeyboard.payload(report: $0, id: 6) } == identity)
+        precondition(packet.withUnsafeBufferPointer { BluetoothKeyboard.payload(report: $0, id: 1) } == nil)
         var event = packet
         event[1] = 0x66
-        precondition(event.withUnsafeBufferPointer { BluetoothLighting.payload(report: $0, id: 6) } == nil)
+        precondition(event.withUnsafeBufferPointer { BluetoothKeyboard.payload(report: $0, id: 6) } == nil)
+    }
+
+    static func verifyLightingSchedule() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Europe/Istanbul")!
+        func date(_ day: Int, _ hour: Int, _ minute: Int = 0) -> Date {
+            calendar.date(from: DateComponents(year: 2026, month: 11, day: day, hour: hour, minute: minute))!
+        }
+        var schedule = LightingSchedule(enabled: true, start: 23 * 60, end: 8 * 60)
+        let overnight = DateInterval(start: date(11, 23), end: date(12, 8))
+        precondition(schedule.interval(at: date(11, 22, 59), calendar: calendar) == nil)
+        precondition(schedule.interval(at: date(11, 23), calendar: calendar) == overnight)
+        precondition(schedule.interval(at: date(12, 7, 59), calendar: calendar) == overnight)
+        precondition(schedule.interval(at: date(12, 8), calendar: calendar) == nil)
+        schedule.start = 7 * 60
+        precondition(schedule.interval(at: date(12, 7), calendar: calendar)?.end == date(12, 8))
+        schedule.end = schedule.start
+        precondition(schedule.interval(at: date(12, 7), calendar: calendar) == nil)
+        schedule.end += 60
+        schedule.enabled = false
+        precondition(schedule.interval(at: date(12, 7), calendar: calendar) == nil)
     }
 
     static func verifyRestore() throws {

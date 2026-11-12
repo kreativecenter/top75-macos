@@ -1,6 +1,6 @@
 # macOS için TOP75
 
-Darmoshark TOP75’i doğrudan USB üzerinden yapılandıran açık kaynak macOS uygulaması.
+Darmoshark TOP75’i USB ve Bluetooth üzerinden yapılandıran açık kaynak macOS uygulaması.
 
 **[DMG indir](https://github.com/kreativecenter/top75-macos/releases/latest/download/TOP75-macOS.dmg) · [İngilizce README](../README.md) · [Protokol notları](protocol.md)**
 
@@ -12,9 +12,13 @@ Darmoshark TOP75’i doğrudan USB üzerinden yapılandıran açık kaynak macOS
 
 **TOP75 → Ayarlar** (⌘,) menüsünden İngilizce, Türkçe veya sistem dilini seçebilirsin. **⌘F** ile kılavuzda ara ve ilgili paneli aç. USB kurulum adımları için kenar çubuğundaki **Bağlantı yardımı** düğmesini kullan.
 
-### Bluetooth aydınlatması
+### Bluetooth ile bağlan
 
-Mac’te **TOP75 BT3.0** ile eşleş ve **Aydınlatma** panelini aç. Kenar çubuğunda **Aydınlatma erişimine izin ver** düğmesine bas. **Sistem Ayarları → Gizlilik ve Güvenlik → Giriş İzleme** bölümünde TOP75’i etkinleştir. macOS isterse uygulamayı yeniden aç. Efektleri ve tuş renklerini Aydınlatma panelinden uygulayabilirsin. Tuş atamaları, makrolar, ekran aktarımı ve cihaz ayarları USB üzerinden çalışır.
+Mac’te **TOP75 BT3.0** ile eşleş ve TOP75’i aç. Kenar çubuğunda **Bluetooth erişimine izin ver** düğmesine bas. **Sistem Ayarları → Gizlilik ve Güvenlik → Giriş İzleme** bölümünde TOP75’i etkinleştir. macOS isterse uygulamayı yeniden aç. Aydınlatma, profiller, tuş atamaları, makrolar ve JSON yedekleme dahil cihaz ayarları Bluetooth üzerinden çalışır. Ekrana görsel yüklemek için USB ile bağlan.
+
+### Işık kapatma aralığı
+
+**TOP75 → Ayarlar → Işık kapatma aralığı** bölümünde günlük başlangıç ve bitiş saatlerini seç. Örneğin 23.00–08.00 arasında klavyenin ışığı kapanır ve 08.00’de önceki efekt geri gelir. Pencere kapalıyken uygulama çalışmaya devam eder. İstersen **Oturum açınca TOP75’i başlat** seçeneğini aç. Işığı erkenden geri getirmek için **Bu aralığı atla** düğmesini kullan. Uygulamanın değişikliği yapabilmesi için klavyenin USB veya Bluetooth ile bağlı olması gerekir.
 
 ## Ekran görüntüleri
 
@@ -45,6 +49,6 @@ Mac’te **TOP75 BT3.0** ile eşleş ve **Aydınlatma** panelini aç. Kenar çub
 | **Ekran** | PNG, JPEG veya GIF sürükleyip bırak. 128 × 128 önizlemede oynat, sığdır veya ortadan kırp. Aktarım ilerlemesi panel değiştirince de görünür. |
 | **Cihaz ayarları** | Tuş tepkisini, otomatik işletim sistemi algılamayı ve kablosuz uyku sürelerini yönet. JSON kaydını klavyeyle karşılaştır ve istediğin farkları geri yükle. |
 
-Apple Silicon ve Intel için derlenen uygulama macOS 14 ve üstünü hedefler. DMG ve ZIP, aynı imzalı ve Apple noter onaylı uygulamayı içerir. Uygulama TOP75 kimliği **957** olan modeli doğrular. Aydınlatma USB ve TOP75 BT3.0 üzerinden çalışır. Sabit görsel yükleme, toplu tuş rengi yazma ve seçmeli JSON geri yükleme fiziksel klavyede doğrulandı. GIF oynatma için fiziksel doğrulama bekleniyor. Geri yükleme için yedek ile klavyenin firmware sürümü eşleşmeli. Eski yedeklerde Fn atamaları, kaydın alındığı etkin profil için kullanılabilir. JSON kaydı makro içeriğini ve ekran görsellerini kapsamaz. Kablosuz yapılandırma, firmware güncelleme, müzik ve ekran eşleme ile fare olaylı makrolar henüz yok.
+Apple Silicon ve Intel için derlenen uygulama macOS 14 ve üstünü hedefler. DMG ve ZIP, aynı imzalı ve Apple noter onaylı uygulamayı içerir. Uygulama TOP75 kimliği **957** olan modeli doğrular. Sabit görsel yükleme, toplu tuş rengi yazma ve seçmeli JSON geri yükleme fiziksel klavyede doğrulandı. GIF oynatma için fiziksel doğrulama bekleniyor. Geri yükleme için yedek ile klavyenin firmware sürümü eşleşmeli. Eski yedeklerde Fn atamaları, kaydın alındığı etkin profil için kullanılabilir. JSON kaydı makro içeriğini ve ekran görsellerini kapsamaz. Firmware güncelleme, müzik ve ekran eşleme ile fare olaylı makrolar henüz yok.
 
 Xcode ve Swift 6 ile depoda `./scripts/build.sh` çalıştırarak dağıtım paketini oluşturabilirsin. Kaynak kodu [MIT lisansı](../LICENSE) ile yayımlanır.

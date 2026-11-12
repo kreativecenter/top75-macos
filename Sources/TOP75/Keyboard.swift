@@ -9,7 +9,7 @@ enum KeyboardError: LocalizedError {
         switch self {
         case .missing: "TOP75’in USB ayar arayüzü bulunamadı. Klavyeyi veri kablosuyla bağlayıp mod anahtarını OFF konumuna al."
         case .missingBluetooth: "TOP75 BT3.0 bağlantısı bulunamadı."
-        case .bluetoothPermission: "Bluetooth aydınlatması için TOP75’e Giriş İzleme izni ver."
+        case .bluetoothPermission: "Bluetooth ayarları için TOP75’e Giriş İzleme izni ver."
         case .bluetoothTimeout: "TOP75, Bluetooth ayar sorgusuna yanıt vermedi. Klavyeyi uyandırıp tekrar dene."
         case .wrongDevice(let id): "Cihaz kimliği eşleşmedi (\(id))."
         case .transport(let operation, let code): "\(operation) başarısız (\(String(format: "0x%08X", UInt32(bitPattern: code))))."
@@ -63,9 +63,47 @@ struct Lighting: Codable, Sendable, Equatable {
     }
 }
 
+enum KeyboardConnection: String, Codable, Sendable {
+    case usb, bluetooth
+}
+
+struct KeyboardAccess {
+    let deviceIdentifier: String
+    let requestReport: (UInt8, [UInt8], Bool, TimeInterval) throws -> [UInt8]
+    let sendReport: ([UInt8]) throws -> Void
+
+    func request(
+        _ opcode: UInt8, parameters: [UInt8] = [], checkEcho: Bool = true, delay: TimeInterval = 0.04
+    ) throws -> [UInt8] {
+        try requestReport(opcode, parameters, checkEcho, delay)
+    }
+
+    func send(_ bytes: [UInt8]) throws {
+        try sendReport(bytes)
+    }
+
+    func writeSetting(_ bytes: [UInt8]) throws {
+        try send(bytes)
+        // Firmware 274 can accept a report while dropping the write during the previous commit.
+        Thread.sleep(forTimeInterval: 0.6)
+    }
+}
+
 enum Keyboard {
     private static let lock = NSLock()
-    static let settingWriteDelay: TimeInterval = 0.6
+    private static func usbDevices(in manager: IOHIDManager) -> Set<IOHIDDevice> {
+        let matching: [String: Any] = [
+            kIOHIDVendorIDKey: 0x3151, kIOHIDProductIDKey: 0x4015,
+            kIOHIDPrimaryUsagePageKey: 0xFFFF, kIOHIDPrimaryUsageKey: 2,
+            kIOHIDTransportKey: "USB"
+        ]
+        IOHIDManagerSetDeviceMatching(manager, matching as CFDictionary)
+        return (IOHIDManagerCopyDevices(manager) as? Set<IOHIDDevice>) ?? []
+    }
+
+    static func hasUSBInterface() -> Bool {
+        usbDevices(in: IOHIDManagerCreate(kCFAllocatorDefault, 0)).count == 1
+    }
     static func report(_ bytes: [UInt8], checksumIndex: Int) -> [UInt8] {
         var result = [UInt8](repeating: 0, count: 64)
         result.replaceSubrange(bytes.indices, with: bytes)
@@ -73,62 +111,38 @@ enum Keyboard {
         return result
     }
 
-    static func lighting(connection: LightingConnection = .usb) throws -> Lighting {
-        try withLightingAccess(connection) { try Lighting(reply: $0.request(0x87, [], true)) }
+    static func lighting(connection: KeyboardConnection = .usb) throws -> Lighting {
+        try withDevice(connection: connection, readLighting)
     }
 
     static func apply(
-        _ lighting: Lighting, replacing previous: Lighting? = nil, connection: LightingConnection = .usb
+        _ lighting: Lighting, replacing previous: Lighting? = nil, connection: KeyboardConnection = .usb
     ) throws -> Lighting {
-        try withLightingAccess(connection) { try apply($0, lighting: lighting, replacing: previous) }
+        try withDevice(connection: connection) { try apply($0, lighting: lighting, replacing: previous) }
     }
 
-    static func apply(_ device: IOHIDDevice, lighting: Lighting, replacing previous: Lighting?) throws -> Lighting {
-        try apply(lightingAccess(device), lighting: lighting, replacing: previous)
-    }
-
-    private static func apply(_ access: LightingAccess, lighting: Lighting, replacing previous: Lighting?) throws -> Lighting {
+    static func apply(_ device: KeyboardAccess, lighting: Lighting, replacing previous: Lighting?) throws -> Lighting {
         if let previous {
-            let current = try Lighting(reply: access.request(0x87, [], true))
+            let current = try readLighting(device)
             guard current.matches(previous) else { throw KeyboardError.mismatch }
         }
-        try access.writeSetting(lighting.report)
+        try device.writeSetting(lighting.report)
         for attempt in 0..<3 {
             if attempt > 0 { Thread.sleep(forTimeInterval: 0.25) }
-            let current = try Lighting(reply: access.request(0x87, [], true))
+            let current = try readLighting(device)
             if current.matches(lighting) { return current }
         }
         throw KeyboardError.mismatch
     }
 
-    static func lightingAccess(_ device: IOHIDDevice) -> LightingAccess {
-        LightingAccess(
-            request: { try request(device, opcode: $0, parameters: $1, checkEcho: $2) },
-            writeSetting: { try writeSetting(device, $0) }
-        )
-    }
-
-    static func withLightingAccess<T>(
-        _ connection: LightingConnection, _ operation: (LightingAccess) throws -> T
-    ) throws -> T {
-        switch connection {
-        case .usb:
-            return try withDevice { try operation(lightingAccess($0)) }
-        case .bluetooth:
-            lock.lock()
-            defer { lock.unlock() }
-            return try BluetoothLighting.withAccess(operation)
-        }
-    }
-
-    static func profileInfo() throws -> (profile: UInt8, firmware: UInt16) {
-        try withDevice { device in
+    static func profileInfo(connection: KeyboardConnection = .usb) throws -> (profile: UInt8, firmware: UInt16) {
+        try withDevice(connection: connection) { device in
             (try readProfile(device), try readFirmware(device))
         }
     }
 
-    static func readFirmware(_ device: IOHIDDevice) throws -> UInt16 {
-        let reply = try request(device, opcode: 0x80)
+    static func readFirmware(_ device: KeyboardAccess) throws -> UInt16 {
+        let reply = try device.request(0x80)
         return UInt16(reply[1]) | UInt16(reply[2]) << 8
     }
 
@@ -136,73 +150,118 @@ enum Keyboard {
         firmware == 274
     }
 
-    static func selectProfile(_ profile: UInt8) throws -> UInt8 {
-        try withDevice { try selectProfile($0, profile: profile) }
+    static func selectProfile(_ profile: UInt8, connection: KeyboardConnection = .usb) throws -> UInt8 {
+        try withDevice(connection: connection) { try selectProfile($0, profile: profile) }
     }
 
-    static func selectProfile(_ device: IOHIDDevice, profile: UInt8) throws -> UInt8 {
+    static func selectProfile(_ device: KeyboardAccess, profile: UInt8) throws -> UInt8 {
         guard profile < 3 else { throw KeyboardError.invalidReply }
-        try writeSetting(device, report([0x05, profile], checksumIndex: 7))
+        try device.writeSetting(report([0x05, profile], checksumIndex: 7))
         let current = try readProfile(device)
         guard current == profile else { throw KeyboardError.mismatch }
         return current
     }
 
-    static func readProfile(_ device: IOHIDDevice) throws -> UInt8 {
-        let profile = try request(device, opcode: 0x85)[1]
+    static func readProfile(_ device: KeyboardAccess) throws -> UInt8 {
+        let profile = try device.request(0x85)[1]
         guard profile < 3 else { throw KeyboardError.invalidReply }
         return profile
     }
 
-    static func keyBinding(slot: UInt8, expectedProfile: UInt8, fn: Bool = false) throws -> [UInt8] {
-        try withDevice { device in
+    static func keyBinding(
+        slot: UInt8, expectedProfile: UInt8, fn: Bool = false, connection: KeyboardConnection = .usb
+    ) throws -> [UInt8] {
+        try withDevice(connection: connection) { device in
             let profile = try readProfile(device)
             guard profile == expectedProfile else { throw KeyboardError.mismatch }
             return try readKey(device, profile: profile, slot: slot, fn: fn)
         }
     }
 
-    static func assignKey(slot: UInt8, binding: [UInt8], expectedProfile: UInt8, previousBinding: [UInt8], fn: Bool = false) throws -> [UInt8] {
-        try withDevice { try assignKey($0, slot: slot, binding: binding, expectedProfile: expectedProfile, previousBinding: previousBinding, fn: fn) }
+    static func assignKey(
+        slot: UInt8, binding: [UInt8], expectedProfile: UInt8, previousBinding: [UInt8],
+        fn: Bool = false, connection: KeyboardConnection = .usb
+    ) throws -> [UInt8] {
+        try withDevice(connection: connection) { try assignKey($0, slot: slot, binding: binding, expectedProfile: expectedProfile, previousBinding: previousBinding, fn: fn) }
     }
 
-    static func assignKey(_ device: IOHIDDevice, slot: UInt8, binding: [UInt8], expectedProfile: UInt8, previousBinding: [UInt8], fn: Bool) throws -> [UInt8] {
+    static func assignKey(_ device: KeyboardAccess, slot: UInt8, binding: [UInt8], expectedProfile: UInt8, previousBinding: [UInt8], fn: Bool) throws -> [UInt8] {
         guard slot < 128, binding.count == 4 else { throw KeyboardError.invalidReply }
         let profile = try readProfile(device)
         guard profile == expectedProfile,
               try readKey(device, profile: profile, slot: slot, fn: fn) == previousBinding
         else { throw KeyboardError.mismatch }
-        try writeSetting(device, report([fn ? 0x15 : 0x13, fn ? 0 : profile, slot, 0, 0, 0, 0, 0] + binding, checksumIndex: 7))
+        try device.writeSetting(report([fn ? 0x15 : 0x13, fn ? 0 : profile, slot, 0, 0, 0, 0, 0] + binding, checksumIndex: 7))
         let current = try readKey(device, profile: profile, slot: slot, fn: fn)
         guard current == binding else { throw KeyboardError.mismatch }
         return current
     }
 
-    private static func readKey(_ device: IOHIDDevice, profile: UInt8, slot: UInt8, fn: Bool) throws -> [UInt8] {
+    private static func readKey(_ device: KeyboardAccess, profile: UInt8, slot: UInt8, fn: Bool) throws -> [UInt8] {
         guard slot < 128 else { throw KeyboardError.invalidReply }
-        let reply = try request(device, opcode: fn ? 0x90 : 0x89, parameters: [fn ? 0 : profile, slot / 16], checkEcho: false)
+        let reply = try device.request(fn ? 0x90 : 0x89, parameters: [fn ? 0 : profile, slot / 16], checkEcho: false)
         guard !reply.allSatisfy({ $0 == 0xFF }) else { throw KeyboardError.invalidReply }
         let offset = Int(slot % 16) * 4
         return Array(reply[offset..<(offset + 4)])
     }
 
-    static func withDevice<T>(_ operation: (IOHIDDevice) throws -> T) throws -> T {
+    static func withDevice<T>(
+        connection: KeyboardConnection = .usb, _ operation: (KeyboardAccess) throws -> T
+    ) throws -> T {
         lock.lock()
         defer { lock.unlock() }
+        func verified(_ access: KeyboardAccess) throws -> T {
+            try verifyIdentity(access.request(0x8F))
+            return try operation(access)
+        }
+        switch connection {
+        case .usb: return try withUSBDevice(verified)
+        case .bluetooth: return try BluetoothKeyboard.withAccess(verified)
+        }
+    }
+
+    private static func withUSBDevice<T>(_ operation: (KeyboardAccess) throws -> T) throws -> T {
         let manager = IOHIDManagerCreate(kCFAllocatorDefault, 0)
-        let matching: [String: Any] = [
-            kIOHIDVendorIDKey: 0x3151, kIOHIDProductIDKey: 0x4015,
-            kIOHIDPrimaryUsagePageKey: 0xFFFF, kIOHIDPrimaryUsageKey: 2,
-            kIOHIDTransportKey: "USB"
-        ]
-        IOHIDManagerSetDeviceMatching(manager, matching as CFDictionary)
-        guard let devices = IOHIDManagerCopyDevices(manager) as? Set<IOHIDDevice>,
-              devices.count == 1, let device = devices.first else { throw KeyboardError.missing }
+        let devices = usbDevices(in: manager)
+        guard devices.count == 1, let device = devices.first else { throw KeyboardError.missing }
         let status = IOHIDDeviceOpen(device, 0)
         guard status == kIOReturnSuccess else { throw KeyboardError.transport("USB erişimi", status) }
-        defer { IOHIDDeviceClose(device, 0) }
-        try verifyIdentity(request(device, opcode: 0x8F))
-        return try operation(device)
+        defer {
+            IOHIDDeviceClose(device, 0)
+            withExtendedLifetime(manager) {}
+        }
+        return try operation(KeyboardAccess(
+            deviceIdentifier: deviceIdentifier(device, connection: .usb),
+            requestReport: { try requestUSB(device, opcode: $0, parameters: $1, checkEcho: $2, delay: $3) },
+            sendReport: { try sendUSB(device, $0) }
+        ))
+    }
+
+    static func deviceIdentifier(_ device: IOHIDDevice, connection: KeyboardConnection) -> String {
+        for key in [kIOHIDUniqueIDKey, kIOHIDSerialNumberKey, kIOHIDLocationIDKey] {
+            let value = IOHIDDeviceGetProperty(device, key as CFString)
+            if let string = value as? String, !string.isEmpty {
+                return "\(connection.rawValue):\(key):\(string)"
+            }
+            if let number = value as? NSNumber, number.uint64Value != 0 {
+                return "\(connection.rawValue):\(key):\(number.uint64Value)"
+            }
+        }
+        var registryID: UInt64 = 0
+        IORegistryEntryGetRegistryEntryID(IOHIDDeviceGetService(device), &registryID)
+        return "\(connection.rawValue):registry:\(registryID)"
+    }
+
+    static func isAvailable(_ connection: KeyboardConnection) -> Bool {
+        switch connection {
+        case .usb: hasUSBInterface()
+        case .bluetooth: BluetoothKeyboard.isConnected() && BluetoothKeyboard.hasAccess
+        }
+    }
+
+    static func availableConnection() -> KeyboardConnection? {
+        if isAvailable(.usb) { return .usb }
+        return isAvailable(.bluetooth) ? .bluetooth : nil
     }
 
     static func verifyIdentity(_ reply: [UInt8]) throws {
@@ -213,23 +272,17 @@ enum Keyboard {
         guard id == 957 else { throw KeyboardError.wrongDevice(id) }
     }
 
-    static func readLighting(_ device: IOHIDDevice) throws -> Lighting {
-        try Lighting(reply: request(device, opcode: 0x87))
+    static func readLighting(_ device: KeyboardAccess) throws -> Lighting {
+        try Lighting(reply: device.request(0x87))
     }
 
-    static func writeSetting(_ device: IOHIDDevice, _ bytes: [UInt8]) throws {
-        try send(device, bytes)
-        // Firmware 274 can accept a report while dropping the write during the previous commit.
-        Thread.sleep(forTimeInterval: settingWriteDelay)
-    }
-
-    static func send(_ device: IOHIDDevice, _ bytes: [UInt8]) throws {
+    private static func sendUSB(_ device: IOHIDDevice, _ bytes: [UInt8]) throws {
         let status = IOHIDDeviceSetReport(device, kIOHIDReportTypeFeature, 0, bytes, bytes.count)
         guard status == kIOReturnSuccess else { throw KeyboardError.transport("Komut gönderme", status) }
     }
 
-    static func request(_ device: IOHIDDevice, opcode: UInt8, parameters: [UInt8] = [], checkEcho: Bool = true, delay: TimeInterval = 0.04) throws -> [UInt8] {
-        try send(device, report([opcode] + parameters, checksumIndex: 7))
+    private static func requestUSB(_ device: IOHIDDevice, opcode: UInt8, parameters: [UInt8] = [], checkEcho: Bool = true, delay: TimeInterval = 0.04) throws -> [UInt8] {
+        try sendUSB(device, report([opcode] + parameters, checksumIndex: 7))
         Thread.sleep(forTimeInterval: delay)
         var bytes = [UInt8](repeating: 0, count: 64)
         var length = bytes.count

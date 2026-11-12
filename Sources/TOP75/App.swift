@@ -203,7 +203,8 @@ enum Launch {
             precondition(pixels.count == 32_768 && pixels.prefix(6) == [0, 31, 248, 0, 0, 31])
             precondition(Entry.search("restore backup", language: english).first?.destination == .device)
             precondition(english("Geri yükleme önizlemesi") == "Restore preview")
-            Verification.verifyBluetoothLighting()
+            Verification.verifyBluetoothKeyboard()
+            Verification.verifyLightingSchedule()
             try! Verification.verifyRestore()
             try! Verification.verifyArtwork()
             print("Localization, guide, layout, USB and Bluetooth HID, macro, restore and GIF/RGB565 checks passed.")
@@ -219,6 +220,10 @@ struct TOP75App: App {
     @NSApplicationDelegateAdaptor(DevelopmentAppDelegate.self) private var appDelegate
     #endif
     @AppStorage("interfaceLanguage") private var preference = LanguagePreference.system
+
+    init() {
+        LightingScheduler.shared.start()
+    }
 
     var body: some Scene {
         WindowGroup("TOP75") {
@@ -251,11 +256,12 @@ struct LightingView: View {
         return language.format("Mevcut efekt (%@)", String(effect))
     }
 
-    @Binding var connection: LightingConnection?
+    @Binding var connection: KeyboardConnection?
     let bluetoothNeedsPermission: Bool
     let isActive: Bool
     let settingsRevision: Int
 
+    private let scheduler = LightingScheduler.shared
     @State private var perKey = false
     @State private var keyColorDraft = KeyColorDraft()
     @State private var confirmed: Lighting?
@@ -287,6 +293,20 @@ struct LightingView: View {
                 .labelsHidden()
                 .disabled(busy || keyColorDraft.action.busy)
             }
+            if scheduler.schedule.enabled {
+                Section {
+                    LabeledContent {
+                        HStack {
+                            Text(l(scheduler.status)).foregroundStyle(.secondary)
+                            if scheduler.canSkip { Button(l("Bu aralığı atla"), action: scheduler.skipCurrentInterval) }
+                            SettingsLink { Image(systemName: "gearshape") }
+                                .help(l("Uygulama ayarları"))
+                        }
+                    } label: {
+                        Label(l("Işık kapatma aralığı"), systemImage: "moon")
+                    }
+                }
+            }
             if perKey {
                 KeyColorControls(palette: $palette, connection: $connection, modeActive: confirmed?.effect == 66, onActivate: {
                     write(Lighting(effect: 66, speed: 0, brightness: 0, flags: 7, rgb: 0), keepEffectDraft: true)
@@ -300,21 +320,18 @@ struct LightingView: View {
         }
         .formStyle(.grouped)
         .safeAreaInset(edge: .bottom, spacing: 0) { if !perKey { actionBar } }
-        .onChange(of: settingsRevision) {
-            confirmed = nil
-            undoLighting = nil
-            palette = []
-            keyColorDraft.undo = [:]
-            if connected { read() }
-        }
-        .onChange(of: connection, initial: true) {
-            confirmed = nil
-            undoLighting = nil
-            palette = []
-            keyColorDraft.undo = [:]
-            status = ""
-            if connected { read() }
-        }
+        .onChange(of: settingsRevision, invalidateLighting)
+        .onChange(of: scheduler.revision, invalidateLighting)
+        .onChange(of: connection, initial: true) { invalidateLighting() }
+    }
+
+    private func invalidateLighting() {
+        confirmed = nil
+        undoLighting = nil
+        palette = []
+        keyColorDraft.undo = [:]
+        status = ""
+        if connected { read() }
     }
 
     @ViewBuilder
@@ -384,7 +401,7 @@ struct LightingView: View {
     }
 
     private var actionStatus: String {
-        if bluetoothNeedsPermission { return "Bluetooth aydınlatması için TOP75’e Giriş İzleme izni ver." }
+        if bluetoothNeedsPermission { return "Bluetooth ayarları için TOP75’e Giriş İzleme izni ver." }
         if !connected { return "TOP75’i USB veya Bluetooth ile bağla." }
         if hasChanges && !hasError { return "Uygulanmamış değişiklikler" }
         return status
@@ -483,6 +500,7 @@ struct LightingView: View {
             let current = try previous ?? Keyboard.lighting(connection: transport)
             return try Keyboard.apply(requested, replacing: current, connection: transport)
         }) { current in
+            scheduler.manualLightingChanged()
             undoLighting = isUndo ? nil : previous
             accept(current)
             if let pending { load(pending) }
@@ -508,7 +526,7 @@ struct LightingView: View {
 
     private func run(
         _ success: String,
-        using transport: LightingConnection,
+        using transport: KeyboardConnection,
         operation: @escaping @Sendable () throws -> Lighting,
         update: @escaping (Lighting) -> Void
     ) {
@@ -557,7 +575,8 @@ struct KeySettingsView: View {
     }()
     static let slots: [UInt8: UInt8] = [4: 9, 5: 40, 6: 28, 7: 21, 8: 20, 9: 27, 10: 33, 11: 39, 12: 50, 13: 45, 14: 51, 15: 57, 16: 52, 17: 46, 18: 56, 19: 62, 20: 8, 21: 26, 22: 15, 23: 32, 24: 44, 25: 34, 26: 14, 27: 22, 28: 38, 29: 16, 30: 7, 31: 13, 32: 19, 33: 25, 34: 31, 35: 37, 36: 43, 37: 49, 38: 55, 39: 61, 40: 81, 41: 0, 42: 79, 43: 2, 44: 41, 45: 67, 46: 73, 47: 68, 48: 74, 49: 80, 50: 75, 51: 63, 52: 69, 53: 1, 54: 58, 55: 64, 56: 70, 57: 3, 58: 12, 59: 18, 60: 24, 61: 30, 62: 36, 63: 42, 64: 48, 65: 54, 66: 60, 67: 66, 68: 72, 69: 78, 74: 86, 75: 87, 76: 85, 78: 88, 79: 89, 80: 77, 81: 83, 82: 82, 100: 10, 224: 5, 225: 4, 226: 17, 227: 11, 228: 71, 229: 76, 230: 59]
 
-    let connected: Bool
+    @Binding var connection: KeyboardConnection?
+    private var connected: Bool { connection != nil }
     let settingsRevision: Int
     private struct Layer: Hashable {
         let profile: UInt8
@@ -653,13 +672,10 @@ struct KeySettingsView: View {
             }
             .background(.bar)
         }
-        .onChange(of: connected, initial: true) { _, available in
-            if available {
-                loadProfile()
-            } else {
-                profile = nil
-                resetAssignment()
-            }
+        .onChange(of: connection, initial: true) {
+            profile = nil
+            resetAssignment()
+            if connected { loadProfile() }
         }
         .onChange(of: settingsRevision) {
             changed = [:]
@@ -686,8 +702,8 @@ struct KeySettingsView: View {
     }
 
     private func loadProfile() {
-        guard connected, !busy else { return }
-        run("Etkin profil okundu.", operation: { try Keyboard.profileInfo() }) { current in
+        guard let transport = connection, !busy else { return }
+        run("Etkin profil okundu.", using: transport, operation: { try Keyboard.profileInfo(connection: transport) }) { current in
             profile = current.profile
             selectedProfile = current.profile
             sharedFn = Keyboard.sharesFnLayer(current.firmware)
@@ -696,8 +712,11 @@ struct KeySettingsView: View {
     }
 
     private func switchProfile() {
+        guard let transport = connection, !busy else { return }
         let target = selectedProfile
-        run("Profil değiştirildi ve doğrulandı.", operation: { try Keyboard.selectProfile(target) }) { current in
+        run("Profil değiştirildi ve doğrulandı.", using: transport, operation: {
+            try Keyboard.selectProfile(target, connection: transport)
+        }) { current in
             profile = current
             selectedProfile = current
             readSelection()
@@ -779,9 +798,12 @@ struct KeySettingsView: View {
     }
 
     private func loadBinding() {
-        guard connected, !busy, let slot = Self.slots[source], let profile, selectedProfile == profile else { return }
+        guard let transport = connection, !busy,
+              let slot = Self.slots[source], let profile, selectedProfile == profile else { return }
         let layer = fn
-        run("Atama klavyeden okundu.", operation: { try Keyboard.keyBinding(slot: slot, expectedProfile: profile, fn: layer) }) { bytes in
+        run("Atama klavyeden okundu.", using: transport, operation: {
+            try Keyboard.keyBinding(slot: slot, expectedProfile: profile, fn: layer, connection: transport)
+        }) { bytes in
             let current = KeyAssignment(bytes: bytes)
             if binding != current { undoBinding = nil }
             binding = current
@@ -800,15 +822,16 @@ struct KeySettingsView: View {
     }
 
     private func writeAssignment(_ target: KeyAssignment, replacing previous: KeyAssignment, isUndo: Bool) {
-        guard !busy, let slot = Self.slots[source], let profile, selectedProfile == profile else { return }
+        guard let transport = connection, !busy,
+              let slot = Self.slots[source], let profile, selectedProfile == profile else { return }
         let layer = fn
         let location = assignmentLayer(profile)
         let key = source
         let success = isUndo ? "Tuş ataması geri alındı." : "Tuş atandı ve klavyeden doğrulandı."
-        run(success, operation: {
+        run(success, using: transport, operation: {
             try Keyboard.assignKey(
                 slot: slot, binding: target.bytes, expectedProfile: profile,
-                previousBinding: previous.bytes, fn: layer
+                previousBinding: previous.bytes, fn: layer, connection: transport
             )
         }) { bytes in
             let current = KeyAssignment(bytes: bytes)
@@ -821,7 +844,8 @@ struct KeySettingsView: View {
     }
 
     private func run<T: Sendable>(
-        _ success: String, operation: @escaping @Sendable () throws -> T, update: @escaping (T) -> Void
+        _ success: String, using transport: KeyboardConnection,
+        operation: @escaping @Sendable () throws -> T, update: @escaping (T) -> Void
     ) {
         busy = true
         status = ""
@@ -829,11 +853,12 @@ struct KeySettingsView: View {
             do {
                 let value = try await Task.detached(operation: operation).value
                 busy = false
-                guard connected else { return }
+                guard connection == transport else { loadProfile(); return }
                 status = success
                 update(value)
             } catch {
                 busy = false
+                guard connection == transport else { loadProfile(); return }
                 binding = nil
                 undoBinding = nil
                 status = l.message(error)

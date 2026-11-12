@@ -171,7 +171,7 @@ extension Keyboard {
             ]
             var ready = false
             for _ in 0..<10 {
-                let response = try request(device, opcode: 0xA5, parameters: parameters, delay: 0.1)
+                let response = try device.request(0xA5, parameters: parameters, delay: 0.1)
                 if response[1] == 1 {
                     ready = true
                     break
@@ -193,7 +193,7 @@ extension Keyboard {
                         0x25, index, count, artwork.delay, UInt8(truncatingIfNeeded: page),
                         UInt8(page >> 8), UInt8(payload.count), 0
                     ]
-                    try send(device, report(header + payload, checksumIndex: 7))
+                    try device.send(report(header + payload, checksumIndex: 7))
                     Thread.sleep(forTimeInterval: 0.003)
                     if page % 32 == 0 {
                         progress(Double(frame * pages + page + 1) / Double(totalPages))

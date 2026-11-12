@@ -142,7 +142,7 @@ struct WorkspaceView: View {
     private let transfer = WorkspaceTransfer.shared
     @State private var connected = false
     @State private var bluetoothDetected = false
-    @State private var lightingConnection: LightingConnection?
+    @State private var connection: KeyboardConnection?
 
     private var selection: Binding<WorkspacePage?> {
         Binding(get: { storedPage }, set: { if let page = $0 { storedPage = page } })
@@ -180,8 +180,8 @@ struct WorkspaceView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
-                        if bluetoothDetected && lightingConnection == nil {
-                            Button(l("Aydınlatma erişimine izin ver"), action: allowBluetoothLighting)
+                        if bluetoothDetected && connection == nil {
+                            Button(l("Bluetooth erişimine izin ver"), action: allowBluetoothAccess)
                                 .buttonStyle(.link)
                                 .font(.caption)
                         } else if !connected && !bluetoothDetected {
@@ -204,7 +204,7 @@ struct WorkspaceView: View {
                     Text(l(storedPage.title)).font(.largeTitle.bold())
                         .accessibilityAddTraits(.isHeader)
                     Text(l(storedPage.subtitle)).foregroundStyle(.secondary)
-                    if bluetoothDetected && storedPage != .lighting && storedPage != .guide {
+                    if bluetoothDetected && storedPage == .display {
                         Label(l("Bu bölüm için USB bağlantısı gerekli."), systemImage: "cable.connector")
                             .font(.callout)
                             .foregroundStyle(.secondary)
@@ -283,14 +283,14 @@ struct WorkspaceView: View {
 
     private func refreshConnection() {
         let usb = Keyboard.hasUSBInterface()
-        let bluetooth = !usb && BluetoothLighting.isConnected()
+        let bluetooth = !usb && BluetoothKeyboard.isConnected()
         connected = usb
         bluetoothDetected = bluetooth
-        lightingConnection = usb ? .usb : bluetooth && BluetoothLighting.hasAccess ? .bluetooth : nil
+        connection = usb ? .usb : bluetooth && BluetoothKeyboard.hasAccess ? .bluetooth : nil
     }
 
-    private func allowBluetoothLighting() {
-        if !BluetoothLighting.requestAccess(),
+    private func allowBluetoothAccess() {
+        if !BluetoothKeyboard.requestAccess(),
            let settings = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
             NSWorkspace.shared.open(settings)
         }
@@ -306,18 +306,18 @@ struct WorkspaceView: View {
         switch page {
         case .lighting:
             LightingView(
-                connection: $lightingConnection, bluetoothNeedsPermission: bluetoothDetected && lightingConnection == nil,
+                connection: $connection, bluetoothNeedsPermission: bluetoothDetected && connection == nil,
                 isActive: storedPage == .lighting, settingsRevision: transfer.settingsRevision
             )
                 .disabled(transfer.isBusy)
         case .keys:
-            KeySettingsView(connected: connected, settingsRevision: transfer.settingsRevision)
+            KeySettingsView(connection: $connection, settingsRevision: transfer.settingsRevision)
                 .disabled(transfer.isBusy)
         case .macros:
-            MacroView(isActive: storedPage == .macros, connected: connected)
+            MacroView(isActive: storedPage == .macros, connection: $connection)
                 .disabled(transfer.isBusy)
         case .display: ScreenView(connected: connected, isActive: storedPage == .display, transfer: transfer)
-        case .device: DeviceOptionsView(connected: connected, transfer: transfer)
+        case .device: DeviceOptionsView(connection: $connection, transfer: transfer)
         case .guide:
             GuideView(focusRequest: guideFocus, connectionRequest: connectionHelp) { storedPage = $0 }
         }
@@ -335,25 +335,10 @@ struct PreferencesView: View {
                 Text("English").tag(LanguagePreference.english)
                 Text("Türkçe").tag(LanguagePreference.turkish)
             }
+            LightingScheduleSettings()
         }
         .formStyle(.grouped)
-        .frame(width: 400, height: 136)
-    }
-}
-
-extension Keyboard {
-    static let usbMatching: [String: Int] = [
-        kIOHIDVendorIDKey: 0x3151, kIOHIDProductIDKey: 0x4015,
-        kIOHIDPrimaryUsagePageKey: 0xFFFF, kIOHIDPrimaryUsageKey: 2
-    ]
-
-    static func hasUSBInterface() -> Bool {
-        let manager = IOHIDManagerCreate(kCFAllocatorDefault, 0)
-        IOHIDManagerSetDeviceMatching(manager, usbMatching as CFDictionary)
-        guard let devices = IOHIDManagerCopyDevices(manager) as? Set<IOHIDDevice> else { return false }
-        return devices.contains {
-            IOHIDDeviceGetProperty($0, kIOHIDTransportKey as CFString) as? String == "USB"
-        }
+        .frame(width: 480, height: 400)
     }
 }
 

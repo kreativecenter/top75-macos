@@ -2,16 +2,7 @@ import Foundation
 import IOKit.hid
 import IOKit.hidsystem
 
-enum LightingConnection: Equatable, Sendable {
-    case usb, bluetooth
-}
-
-struct LightingAccess {
-    let request: (UInt8, [UInt8], Bool) throws -> [UInt8]
-    let writeSetting: ([UInt8]) throws -> Void
-}
-
-enum BluetoothLighting {
+enum BluetoothKeyboard {
     private static let reportID: UInt32 = 6
     private static let commandMarker: UInt8 = 0x55
     private static let packetSize = 66
@@ -51,15 +42,17 @@ enum BluetoothLighting {
         return Array(report.dropFirst(2))
     }
 
-    static func withAccess<T>(_ operation: (LightingAccess) throws -> T) throws -> T {
+    static func withAccess<T>(_ operation: (KeyboardAccess) throws -> T) throws -> T {
         let manager = IOHIDManagerCreate(kCFAllocatorDefault, 0)
         guard let device = matchingDevice(in: manager) else { throw KeyboardError.missingBluetooth }
         let session = try Session(device)
         defer { withExtendedLifetime(manager) {} }
 
-        let identity = try session.request(0x8F, [], true)
-        try Keyboard.verifyIdentity(identity)
-        return try operation(LightingAccess(request: session.request, writeSetting: session.writeSetting))
+        return try operation(KeyboardAccess(
+            deviceIdentifier: Keyboard.deviceIdentifier(device, connection: .bluetooth),
+            requestReport: { opcode, parameters, checkEcho, _ in try session.request(opcode, parameters, checkEcho) },
+            sendReport: session.send
+        ))
     }
 
     private final class Session {
@@ -73,7 +66,7 @@ enum BluetoothLighting {
         init(_ device: IOHIDDevice) throws {
             let status = IOHIDDeviceOpen(device, 0)
             guard status == kIOReturnSuccess else {
-                if !BluetoothLighting.hasAccess { throw KeyboardError.bluetoothPermission }
+                if !BluetoothKeyboard.hasAccess { throw KeyboardError.bluetoothPermission }
                 throw KeyboardError.transport("Bluetooth erişimi", status)
             }
             self.device = device
@@ -114,12 +107,7 @@ enum BluetoothLighting {
             throw KeyboardError.bluetoothTimeout
         }
 
-        func writeSetting(_ report: [UInt8]) throws {
-            try send(report)
-            Thread.sleep(forTimeInterval: Keyboard.settingWriteDelay)
-        }
-
-        private func send(_ report: [UInt8]) throws {
+        func send(_ report: [UInt8]) throws {
             let bytes = packet(for: report)
             let status = IOHIDDeviceSetReport(device, kIOHIDReportTypeOutput, Int(reportID), bytes, bytes.count)
             guard status == kIOReturnSuccess else { throw KeyboardError.transport("Bluetooth komutu gönderme", status) }

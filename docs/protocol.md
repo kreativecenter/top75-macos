@@ -1,4 +1,4 @@
-# TOP75 USB protocol and verification
+# TOP75 protocol and verification
 
 The Windows package `Darmoshark_setup_2.1.83(WIN2024124).exe` (SHA-256 `b32c4eb0cac2a08f96ced38fb3e43783d66466e1092f1e728a18cc097a9d254b`) was inspected statically. The model registry and command builders in its renderer identify the `yc500_top75_soc` variant, ID 957 and a 128 × 128 RGB565 display with five still slots. The proprietary installer and its contents are not redistributed.
 
@@ -29,8 +29,10 @@ On firmware 274, the second per-key color command was dropped at 250 ms between 
 
 The display preview decodes the same RGB565 frames passed to the uploader. Automated checks cover version 1 and 2 backup selection and the fit/crop rendering of a two-frame GIF.
 
-## Bluetooth lighting
+## Bluetooth HID
 
-The paired TOP75 BT3.0 reports VID `0x3151`, PID `0x4012` and vendor report ID 6 on usage page `0xFF66`. Send a 66-byte output report with prefix `06 55` followed by the 64-byte command. The checksum covers the command bytes. Replies arrive on the input report callback with the same prefix. The app filters for report ID 6 and marker `0x55` before accepting a reply, then checks device ID 957 before accessing lighting.
+The paired TOP75 BT3.0 reports VID `0x3151`, PID `0x4012` and vendor report ID 6 on usage page `0xFF66`. Send a 66-byte output report with prefix `06 55` followed by the 64-byte command. The checksum covers the command bytes. Replies arrive on the input report callback with the same prefix. The app filters for report ID 6 and marker `0x55` before accepting a reply, then checks device ID 957 before accessing settings.
 
-On firmware 274, the app read back and reverted a two-key color batch and a global brightness change over Bluetooth. The Bluetooth transport is used by the Lighting panel. macOS requires Input Monitoring permission to open this keyboard interface.
+On firmware 274, the app read back and reverted a two-key color batch and a global brightness change over Bluetooth. macOS requires Input Monitoring permission to open this keyboard interface.
+
+Firmware 274 also verified writes and rollback for active profile selection, a short macro in an empty slot, and selective JSON restore of Base and Fn assignments, debounce and a sleep timer. The daily schedule turned the lights off over Bluetooth and restored the exact prior settings both at the end time and when skipping an interval. Display firmware responded to a read, and artwork uploads use the verified wired path.

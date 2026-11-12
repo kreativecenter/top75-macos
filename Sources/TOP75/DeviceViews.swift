@@ -47,7 +47,7 @@ struct KeyColorDraft {
 struct KeyColorControls: View {
     @Environment(\.appLanguage) private var l
     @Binding var palette: [UInt32]
-    @Binding var connection: LightingConnection?
+    @Binding var connection: KeyboardConnection?
     let modeActive: Bool
     var onActivate: () -> Void
     @Binding var draft: KeyColorDraft
@@ -147,7 +147,7 @@ struct KeyColorControls: View {
     }
 
     private func run(
-        _ success: String, using transport: LightingConnection, transferID: UUID? = nil,
+        _ success: String, using transport: KeyboardConnection, transferID: UUID? = nil,
         operation: @escaping @Sendable () throws -> [UInt32], update: @escaping ([UInt32]) -> Void
     ) {
         draft.action.busy = true
@@ -174,7 +174,8 @@ struct KeyColorControls: View {
 
 struct DeviceOptionsView: View {
     @Environment(\.appLanguage) private var l
-    let connected: Bool
+    @Binding var connection: KeyboardConnection?
+    private var connected: Bool { connection != nil }
     let transfer: WorkspaceTransfer
     @State private var restorePlan: SnapshotRestorePlan?
     @State private var importing = false
@@ -202,7 +203,7 @@ struct DeviceOptionsView: View {
             .disabled(initial == nil || action.busy)
             Section {
                 HStack {
-                    Button(l("Klavyeden oku")) { load() }
+                    Button(l("Klavyeden oku")) { load() }.disabled(!connected)
                     Button(l("Ayarları uygula")) { save() }
                         .buttonStyle(.borderedProminent)
                         .disabled(!connected || initial == nil || initial == draft)
@@ -223,17 +224,19 @@ struct DeviceOptionsView: View {
         }
         .formStyle(.grouped)
         .disabled(transfer.isBusy)
-        .onChange(of: connected, initial: true) {
-            if connected && !transfer.isBusy && !action.busy { load() }
-            if !connected { initial = nil }
+        .onChange(of: connection, initial: true) {
+            initial = nil
+            reviewing = false
+            if !transfer.isBusy { load() }
         }
         .onChange(of: transfer.settingsRevision) {
-            guard connected, !action.busy else { return }
+            guard let transport = connection, !action.busy else { return }
             initial = nil
             action.busy = true
-            action.perform({ try Keyboard.options() }) { result in
+            action.perform({ try Keyboard.options(connection: transport) }) { result in
                 action.busy = false
-                if connected, case .success(let options) = result {
+                guard connection == transport else { load(); return }
+                if case .success(let options) = result {
                     initial = options
                     draft = options
                 }
@@ -255,10 +258,12 @@ struct DeviceOptionsView: View {
     }
 
     private func export() {
+        guard let transport = connection, !action.busy else { return }
         action.busy = true
         action.status = ""
-        action.perform { try Keyboard.settingsSnapshot() } completion: { result in
+        action.perform { try Keyboard.settingsSnapshot(connection: transport) } completion: { result in
             action.busy = false
+            guard connection == transport else { load(); return }
             switch result {
             case .success(let bytes):
                 snapshot = SnapshotDocument(bytes: bytes)
@@ -270,13 +275,14 @@ struct DeviceOptionsView: View {
     }
 
     private func review(_ url: URL) {
-        guard connected, let id = transfer.start(.device, title: "Ayarlar karşılaştırılıyor", determinate: false) else { return }
+        guard let transport = connection, let id = transfer.start(.device, title: "Ayarlar karşılaştırılıyor", determinate: false) else { return }
         action.status = ""
         action.perform {
             let backup = try SettingsSnapshot.load(from: url)
-            return try SnapshotRestorePlan(current: Keyboard.snapshot(), backup: backup)
+            return try SnapshotRestorePlan(current: Keyboard.snapshot(connection: transport), backup: backup)
         } completion: { result in
             transfer.finish(id)
+            guard connection == transport else { load(); return }
             switch result {
             case .success(let plan):
                 restorePlan = plan
@@ -288,18 +294,19 @@ struct DeviceOptionsView: View {
     }
 
     private func restore(_ plan: SnapshotRestorePlan, selection: Set<SnapshotRestorePlan.Item>) {
-        guard connected, let id = transfer.start(.device, title: "Ayarlar geri yükleniyor") else { return }
+        guard let transport = connection, let id = transfer.start(.device, title: "Ayarlar geri yükleniyor") else { return }
         reviewing = false
         initial = nil
         action.status = ""
         action.perform {
-            try Keyboard.restore(plan, selection: selection) { progress in
+            try Keyboard.restore(plan, selection: selection, connection: transport) { progress in
                 Task { @MainActor in transfer.update(id, progress: progress) }
             }
         } completion: { result in
             transfer.finish(id, settingsChanged: true)
             switch result {
             case .success:
+                if selection.contains(.lighting) { LightingScheduler.shared.manualLightingChanged() }
                 action.status = l.format("%@ değişiklik yazıldı ve klavyeden doğrulandı.", String(selection.count))
             case .failure(let error as SnapshotRestoreFailure):
                 action.status = l.format("%@ değişiklik doğrulandı. İşlem durdu. %@ Yeni bir önizleme aç.",
@@ -315,22 +322,24 @@ struct DeviceOptionsView: View {
     }
 
     private func load() {
-        run("Ayarlar klavyeden okundu.") { try Keyboard.options() }
+        guard let transport = connection, !action.busy else { return }
+        run("Ayarlar klavyeden okundu.", using: transport) { try Keyboard.options(connection: transport) }
     }
 
     private func save() {
-        guard let initial else { return }
+        guard let transport = connection, let initial, !action.busy else { return }
         let desired = draft
-        run("Ayarlar yazıldı ve klavyeden doğrulandı.") {
-            try Keyboard.updateOptions(desired, previous: initial)
+        run("Ayarlar yazıldı ve klavyeden doğrulandı.", using: transport) {
+            try Keyboard.updateOptions(desired, previous: initial, connection: transport)
         }
     }
 
-    private func run(_ success: String, operation: @escaping @Sendable () throws -> DeviceOptions) {
+    private func run(_ success: String, using transport: KeyboardConnection, operation: @escaping @Sendable () throws -> DeviceOptions) {
         action.busy = true
         action.status = ""
         action.perform(operation) { result in
             action.busy = false
+            guard connection == transport else { load(); return }
             switch result {
             case .success(let options):
                 initial = options
@@ -347,7 +356,8 @@ struct DeviceOptionsView: View {
 struct MacroView: View {
     @Environment(\.appLanguage) private var l
     let isActive: Bool
-    let connected: Bool
+    @Binding var connection: KeyboardConnection?
+    private var connected: Bool { connection != nil }
     @State private var playback: Task<Void, Never>?
     @State private var held: Set<UInt8> = []
     @State private var playingIndex: Int?
@@ -426,6 +436,10 @@ struct MacroView: View {
         }
         .formStyle(.grouped)
         .onChange(of: strokes) { stop() }
+        .onChange(of: connection) {
+            previous = nil
+            action.status = ""
+        }
         .onChange(of: isActive) { if !isActive { stop() } }
         .onDisappear { stop() }
     }
@@ -496,29 +510,31 @@ struct MacroView: View {
     }
 
     private func load() {
+        guard let transport = connection, !action.busy else { return }
         let index = slot
-        run("Makro okundu.") { try Keyboard.macro(slot: index) }
+        run("Makro okundu.", using: transport) { try Keyboard.macro(slot: index, connection: transport) }
     }
 
     private func save() {
-        guard let previous else { return }
+        guard let transport = connection, let previous, !action.busy else { return }
         let index = slot
         do {
             let bytes = try Macro(repeats: repeats, strokes: strokes).encoded()
-            run("Makro yazıldı ve klavyeden doğrulandı.") {
-                try Keyboard.setMacro(slot: index, bytes: bytes, previous: previous)
+            run("Makro yazıldı ve klavyeden doğrulandı.", using: transport) {
+                try Keyboard.setMacro(slot: index, bytes: bytes, previous: previous, connection: transport)
             }
         } catch {
             action.status = l.message(error)
         }
     }
 
-    private func run(_ success: String, operation: @escaping @Sendable () throws -> [UInt8]) {
+    private func run(_ success: String, using transport: KeyboardConnection, operation: @escaping @Sendable () throws -> [UInt8]) {
         stop()
         action.busy = true
         action.status = ""
         action.perform(operation) { result in
             action.busy = false
+            guard connection == transport else { return }
             do {
                 let bytes = try result.get()
                 let macro = try Macro(bytes: bytes)

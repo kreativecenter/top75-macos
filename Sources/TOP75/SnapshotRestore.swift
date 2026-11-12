@@ -157,10 +157,10 @@ struct SnapshotRestorePlan: Sendable {
 extension Keyboard {
     static func restore(
         _ plan: SnapshotRestorePlan, selection: Set<SnapshotRestorePlan.Item>,
-        progress: @Sendable (Double) -> Void
+        connection: KeyboardConnection = .usb, progress: @Sendable (Double) -> Void
     ) throws {
         guard !selection.isEmpty, selection.isSubset(of: Set(plan.changes)) else { throw SnapshotError.invalidFile }
-        try withDevice { device in
+        try withDevice(connection: connection) { device in
             let observed = try readSnapshot(device)
             guard observed.firmware == plan.current.firmware, observed.hasExpectedShape,
                   observed.activeProfile == plan.current.activeProfile,
