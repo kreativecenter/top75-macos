@@ -24,17 +24,14 @@ extension Keyboard {
         guard desired.isValid else { throw KeyboardError.invalidReply }
         guard try readOptions(device) == previous else { throw KeyboardError.mismatch }
         if desired.debounce != previous.debounce {
-            try send(device, report([0x11, 0, desired.debounce], checksumIndex: 7))
-            Thread.sleep(forTimeInterval: 0.5)
+            try writeSetting(device, report([0x11, 0, desired.debounce], checksumIndex: 7))
         }
         if desired.automaticOS != previous.automaticOS {
-            try send(device, report([0x17, desired.automaticOS ? 1 : 0], checksumIndex: 7))
-            Thread.sleep(forTimeInterval: 0.5)
+            try writeSetting(device, report([0x17, desired.automaticOS ? 1 : 0], checksumIndex: 7))
         }
         if desired.timers != previous.timers {
             let timers = desired.timers.flatMap { [UInt8(truncatingIfNeeded: $0), UInt8($0 >> 8)] }
-            try send(device, report([0x12, 0, 0, 0, 0, 0, 0, 0] + timers, checksumIndex: 7))
-            Thread.sleep(forTimeInterval: 0.5)
+            try writeSetting(device, report([0x12, 0, 0, 0, 0, 0, 0, 0] + timers, checksumIndex: 7))
         }
         let current = try readOptions(device)
         guard current == desired else { throw KeyboardError.mismatch }
@@ -53,24 +50,33 @@ extension Keyboard {
         try withDevice { try readKeyColors($0) }
     }
 
-    static func setKeyColors(_ changes: [UInt8: UInt32], previous: [UInt32]) throws -> [UInt32] {
-        try withDevice { try setKeyColors($0, changes: changes, previous: previous) }
+    static func setKeyColors(
+        _ changes: [UInt8: UInt32], previous: [UInt32],
+        progress: @Sendable (Double) -> Void = { _ in }
+    ) throws -> [UInt32] {
+        try withDevice { try setKeyColors($0, changes: changes, previous: previous, progress: progress) }
     }
 
-    static func setKeyColors(_ device: IOHIDDevice, changes: [UInt8: UInt32], previous: [UInt32]) throws -> [UInt32] {
+    static func setKeyColors(
+        _ device: IOHIDDevice, changes: [UInt8: UInt32], previous: [UInt32],
+        progress: (Double) -> Void = { _ in }
+    ) throws -> [UInt32] {
         guard previous.count == 128, changes.allSatisfy({ $0.key < 128 && $0.value <= 0xFFFFFF })
         else { throw KeyboardError.invalidReply }
         let observed = try readKeyColors(device)
         guard changes.keys.allSatisfy({ observed[Int($0)] == previous[Int($0)] }) else {
             throw KeyboardError.mismatch
         }
-        for (slot, rgb) in changes.sorted(by: { $0.key < $1.key }) where observed[Int(slot)] != rgb {
+        let pending = changes.filter { observed[Int($0.key)] != $0.value }.sorted { $0.key < $1.key }
+        for (index, entry) in pending.enumerated() {
+            let (slot, rgb) = entry
             let bytes = [UInt8(rgb >> 16), UInt8(truncatingIfNeeded: rgb >> 8), UInt8(truncatingIfNeeded: rgb)]
-            try send(device, report([0x14, 0, slot, 0, 0, 0, 0, 0] + bytes, checksumIndex: 7))
-            Thread.sleep(forTimeInterval: 0.25)
+            try writeSetting(device, report([0x14, 0, slot, 0, 0, 0, 0, 0] + bytes, checksumIndex: 7))
+            progress(0.95 * Double(index + 1) / Double(pending.count))
         }
         let current = try readKeyColors(device)
         guard changes.allSatisfy({ current[Int($0.key)] == $0.value }) else { throw KeyboardError.mismatch }
+        progress(1)
         return current
     }
 
@@ -164,20 +170,53 @@ extension Keyboard {
 
     static func readSnapshot(_ device: IOHIDDevice) throws -> SettingsSnapshot {
         let active = try readProfile(device)
-        let version = try request(device, opcode: 0x80)
-        let profiles: [SettingsSnapshot.Profile] = try (UInt8(0)...2).map { index in
-            let base = try readPages(device, opcode: 0x89, index: index, count: 8)
-            let function = try readPages(device, opcode: 0x90, index: index, count: 8)
-            return SettingsSnapshot.Profile(base: bindings(base), function: bindings(function))
+        let firmware = try readFirmware(device)
+        let base = try (UInt8(0)...2).map { profile in
+            bindings(try readPages(device, opcode: 0x89, index: profile, count: 8))
         }
-        let snapshot = SettingsSnapshot(
-            formatVersion: 1, device: SettingsSnapshot.model, recordedAt: Date(), activeProfile: active,
-            firmware: UInt16(version[1]) | UInt16(version[2]) << 8,
-            lighting: try readLighting(device), options: try readOptions(device),
-            keyColors: try readKeyColors(device), profiles: profiles
-        )
+        let lighting = try readLighting(device)
+        let options = try readOptions(device)
+        let colors = try readKeyColors(device)
         guard try readProfile(device) == active else { throw KeyboardError.mismatch }
-        return snapshot
+
+        let functions = try readFunctionLayers(device, active: active, firmware: firmware)
+        return SettingsSnapshot(
+            formatVersion: 2, device: SettingsSnapshot.model, recordedAt: Date(), activeProfile: active,
+            firmware: firmware, lighting: lighting, options: options, keyColors: colors,
+            profiles: zip(base, functions).map { .init(base: $0, function: $1) }
+        )
+    }
+
+    private static func readFunctionLayers(
+        _ device: IOHIDDevice, active: UInt8, firmware: UInt16
+    ) throws -> [[[UInt8]]] {
+        // TOP75 exposes Fn layer zero for the currently active profile.
+        // Firmware 274 uses the same Fn table for profiles 2 and 3.
+        let profiles: [UInt8] = sharesFnLayer(firmware) ? [0, active == 2 ? 2 : 1] : [0, 1, 2]
+        var result = Array(repeating: [[UInt8]](), count: 3)
+        let order = [active] + profiles.filter { $0 != active }
+        do {
+            for profile in order {
+                if try readProfile(device) != profile { _ = try selectProfile(device, profile: profile) }
+                let layer = bindings(try readPages(device, opcode: 0x90, index: 0, count: 8))
+                guard try readProfile(device) == profile else { throw KeyboardError.mismatch }
+                result[Int(profile)] = layer
+                if sharesFnLayer(firmware) && profile > 0 { result[Int(3 - profile)] = layer }
+            }
+        } catch {
+            try recoverProfile(device, profile: active)
+            throw error
+        }
+        try recoverProfile(device, profile: active)
+        return result
+    }
+
+    static func recoverProfile(_ device: IOHIDDevice, profile: UInt8) throws {
+        do {
+            if try readProfile(device) != profile { _ = try selectProfile(device, profile: profile) }
+        } catch {
+            throw SnapshotError.profileRecoveryFailed
+        }
     }
 
     private static func bindings(_ bytes: [UInt8]) -> [[UInt8]] {

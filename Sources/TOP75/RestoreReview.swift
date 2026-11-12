@@ -14,6 +14,11 @@ struct RestoreReview: View {
             Text(l("Geri yükleme önizlemesi")).font(.title2.bold())
             Text(plan.changes.isEmpty ? l("Ayar kaydı klavyeyle eşleşiyor.") : l("Klavyeye yazmak istediğin değişiklikleri seç."))
                 .foregroundStyle(.secondary)
+            if plan.backup.formatVersion == 1 {
+                Text(l("Bu eski yedekte Fn atamaları, kaydın alındığı etkin profil için kullanılabilir."))
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
             if !plan.changes.isEmpty {
                 HStack {
                     Button(l("Tümünü seç")) { selected = Set(plan.changes) }
@@ -74,6 +79,7 @@ struct RestoreReview: View {
         case .settings: l("Cihaz ayarları")
         case .colors: l("Tuş başına renk")
         case .profile(let profile): l.format("Profil %@", String(Int(profile) + 1))
+        case .sharedFn: l("Fn · Profil 2 ve 3")
         }
     }
 
@@ -90,7 +96,7 @@ struct RestoreReview: View {
         case .automaticOS: l("İşletim sistemini otomatik algıla")
         case .timer(let index): l(SnapshotRestorePlan.timers[index])
         case .activeProfile: l("Etkin profil")
-        case .color(let slot): physicalKey(slot)
+        case .color(let slot), .sharedFn(let slot): physicalKey(slot)
         case .key(_, let fn, let slot): "\(physicalKey(slot)) · \(fn ? "Fn" : l("Temel"))"
         }
     }
@@ -108,11 +114,12 @@ struct RestoreReview: View {
         case .timer(let index): return l.format("%@ sn", String(snapshot.options.timers[index]))
         case .activeProfile: return groupTitle(.profile(snapshot.activeProfile))
         case .color(let slot): return hex(snapshot.keyColors[Int(slot)])
-        case .key(let profile, let fn, let slot):
-            let bytes = snapshot.binding(profile: profile, fn: fn, slot: slot)
+        case .key, .sharedFn:
+            guard let key = item.keyTarget else { return "" }
+            let bytes = snapshot.binding(profile: key.profile, fn: key.fn, slot: key.slot)
             let assignment = KeyAssignment(bytes: bytes)
             if case .custom = assignment { return bytes.map { String(format: "%02X", $0) }.joined(separator: " ") }
-            return assignment.displayName(fn: fn, language: l)
+            return assignment.displayName(fn: key.fn, language: l)
         }
     }
 

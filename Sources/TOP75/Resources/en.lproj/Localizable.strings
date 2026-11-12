@@ -290,3 +290,7 @@
 "Zaman çizelgesi" = "Timeline";
 "Önceki etkin profil geri seçilemedi. Klavyedeki etkin profili kontrol et." = "The original profile could not be reselected. Check the active profile on the keyboard.";
 "Üç cihaz profili arasında geçiş yap ve profillere bu Mac’te ad ver." = "Switch among three onboard profiles and name them on this Mac.";
+"Tuş renkleri yazılıyor" = "Writing key colors";
+"Bu eski yedekte Fn atamaları, kaydın alındığı etkin profil için kullanılabilir." = "This older backup supplies Fn assignments for the profile that was active when it was saved.";
+"Fn · Profil 2 ve 3" = "Fn · Profiles 2 and 3";
+"Profil 2 ve 3 aynı Fn katmanını kullanır." = "Profiles 2 and 3 share this Fn layer.";

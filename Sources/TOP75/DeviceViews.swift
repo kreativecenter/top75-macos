@@ -51,6 +51,7 @@ struct KeyColorControls: View {
     let modeActive: Bool
     var onActivate: () -> Void
     @Binding var draft: KeyColorDraft
+    private let transfer = WorkspaceTransfer.shared
 
     var body: some View {
         Section(l("Tuş başına renk")) {
@@ -83,7 +84,7 @@ struct KeyColorControls: View {
                     .buttonStyle(.borderedProminent)
                     .disabled(!connected || palette.isEmpty || draft.changes.isEmpty)
             }
-            if draft.action.busy { ProgressView().controlSize(.small) }
+            if draft.action.busy && transfer.job?.page != .lighting { ProgressView().controlSize(.small) }
             if !draft.action.status.isEmpty { Text(l(draft.action.status)).foregroundStyle(.secondary) }
         }
         .disabled(draft.action.busy)
@@ -132,9 +133,12 @@ struct KeyColorControls: View {
 
     private func save(_ requested: [UInt8: UInt32], isUndo: Bool) {
         let previous = palette
-        guard previous.count == 128, !requested.isEmpty else { return }
-        run(isUndo ? "Tuş renkleri geri alındı." : "Tuş renkleri yazıldı ve doğrulandı.", operation: {
-            try Keyboard.setKeyColors(requested, previous: previous)
+        guard previous.count == 128, !requested.isEmpty,
+              let id = transfer.start(.lighting, title: "Tuş renkleri yazılıyor") else { return }
+        run(isUndo ? "Tuş renkleri geri alındı." : "Tuş renkleri yazıldı ve doğrulandı.", transferID: id, operation: {
+            try Keyboard.setKeyColors(requested, previous: previous) { value in
+                Task { @MainActor in transfer.update(id, progress: value) }
+            }
         }) { _ in
             draft.changes = [:]
             draft.undo = isUndo ? [:] : requested.reduce(into: [:]) { $0[$1.key] = previous[Int($1.key)] }
@@ -142,11 +146,13 @@ struct KeyColorControls: View {
     }
 
     private func run(
-        _ success: String, operation: @escaping @Sendable () throws -> [UInt32], update: @escaping ([UInt32]) -> Void
+        _ success: String, transferID: UUID? = nil,
+        operation: @escaping @Sendable () throws -> [UInt32], update: @escaping ([UInt32]) -> Void
     ) {
         draft.action.busy = true
         draft.action.status = ""
         draft.action.perform(operation) { result in
+            if let transferID { transfer.finish(transferID) }
             draft.action.busy = false
             switch result {
             case .success(let current):

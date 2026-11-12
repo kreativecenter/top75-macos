@@ -9,7 +9,7 @@ enum Verification {
         let profiles = Array(repeating: SettingsSnapshot.Profile(base: blank, function: blank), count: 3)
         let colors = Array(repeating: UInt32(0), count: 128)
         let current = SettingsSnapshot(
-            formatVersion: 1, device: SettingsSnapshot.model, recordedAt: Date(),
+            formatVersion: 2, device: SettingsSnapshot.model, recordedAt: Date(),
             activeProfile: 0, firmware: 123, lighting: lighting, options: options, keyColors: colors, profiles: profiles
         )
         var changedOptions = options
@@ -22,7 +22,7 @@ enum Verification {
         var changedProfiles = profiles
         changedProfiles[2] = .init(base: blank, function: fn)
         let backup = SettingsSnapshot(
-            formatVersion: 1, device: SettingsSnapshot.model, recordedAt: Date(),
+            formatVersion: 2, device: SettingsSnapshot.model, recordedAt: Date(),
             activeProfile: 1, firmware: 123, lighting: lighting, options: changedOptions,
             keyColors: changedColors, profiles: changedProfiles
         )
@@ -34,6 +34,24 @@ enum Verification {
         precondition(Set(plan.changes) == [.debounce, .timer(2), .color(9), .key(profile: 2, fn: true, slot: 78), .activeProfile])
         let selected = plan.selectedOptions([.timer(2)], from: current.options)
         precondition(selected.debounce == 2 && selected.timers == [60, 60, 240, 120])
+        let sharedCurrent = SettingsSnapshot(
+            formatVersion: 2, device: SettingsSnapshot.model, recordedAt: Date(),
+            activeProfile: 0, firmware: 274, lighting: lighting, options: options, keyColors: colors, profiles: profiles
+        )
+        changedProfiles[1] = changedProfiles[2]
+        let sharedBackup = SettingsSnapshot(
+            formatVersion: 2, device: SettingsSnapshot.model, recordedAt: Date(),
+            activeProfile: 0, firmware: 274, lighting: lighting, options: options, keyColors: colors, profiles: changedProfiles
+        )
+        let sharedPlan = try SnapshotRestorePlan(current: sharedCurrent, backup: SettingsSnapshot.decode(encoder.encode(sharedBackup)))
+        precondition(sharedPlan.changes == [.sharedFn(slot: 78)])
+        let legacy = SettingsSnapshot(
+            formatVersion: 1, device: SettingsSnapshot.model, recordedAt: Date(),
+            activeProfile: 2, firmware: 274, lighting: lighting, options: options, keyColors: colors,
+            profiles: [changedProfiles[2], profiles[1], profiles[2]]
+        )
+        let legacyPlan = try SnapshotRestorePlan(current: sharedCurrent, backup: SettingsSnapshot.decode(encoder.encode(legacy)))
+        precondition(Set(legacyPlan.changes) == [.activeProfile, .sharedFn(slot: 78)])
         var invalid = data
         let modelRange = invalid.range(of: Data(SettingsSnapshot.model.utf8))!
         invalid.replaceSubrange(modelRange, with: "Another keyboard".utf8)

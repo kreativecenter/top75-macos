@@ -78,9 +78,9 @@ enum Keyboard {
 
     static func apply(_ device: IOHIDDevice, lighting: Lighting, replacing previous: Lighting?) throws -> Lighting {
         if let previous, try !readLighting(device).matches(previous) { throw KeyboardError.mismatch }
-        try send(device, lighting.report)
-        for _ in 0..<3 {
-            Thread.sleep(forTimeInterval: 0.25)
+        try writeSetting(device, lighting.report)
+        for attempt in 0..<3 {
+            if attempt > 0 { Thread.sleep(forTimeInterval: 0.25) }
             let current = try readLighting(device)
 
             if current.matches(lighting) { return current }
@@ -88,8 +88,19 @@ enum Keyboard {
         throw KeyboardError.mismatch
     }
 
-    static func profile() throws -> UInt8 {
-        try withDevice { try readProfile($0) }
+    static func profileInfo() throws -> (profile: UInt8, firmware: UInt16) {
+        try withDevice { device in
+            (try readProfile(device), try readFirmware(device))
+        }
+    }
+
+    static func readFirmware(_ device: IOHIDDevice) throws -> UInt16 {
+        let reply = try request(device, opcode: 0x80)
+        return UInt16(reply[1]) | UInt16(reply[2]) << 8
+    }
+
+    static func sharesFnLayer(_ firmware: UInt16) -> Bool {
+        firmware == 274
     }
 
     static func selectProfile(_ profile: UInt8) throws -> UInt8 {
@@ -98,8 +109,7 @@ enum Keyboard {
 
     static func selectProfile(_ device: IOHIDDevice, profile: UInt8) throws -> UInt8 {
         guard profile < 3 else { throw KeyboardError.invalidReply }
-        try send(device, report([0x05, profile], checksumIndex: 7))
-        Thread.sleep(forTimeInterval: 0.25)
+        try writeSetting(device, report([0x05, profile], checksumIndex: 7))
         let current = try readProfile(device)
         guard current == profile else { throw KeyboardError.mismatch }
         return current
@@ -129,8 +139,7 @@ enum Keyboard {
         guard profile == expectedProfile,
               try readKey(device, profile: profile, slot: slot, fn: fn) == previousBinding
         else { throw KeyboardError.mismatch }
-        try send(device, report([fn ? 0x15 : 0x13, profile, slot, 0, 0, 0, 0, 0] + binding, checksumIndex: 7))
-        Thread.sleep(forTimeInterval: 0.25)
+        try writeSetting(device, report([fn ? 0x15 : 0x13, fn ? 0 : profile, slot, 0, 0, 0, 0, 0] + binding, checksumIndex: 7))
         let current = try readKey(device, profile: profile, slot: slot, fn: fn)
         guard current == binding else { throw KeyboardError.mismatch }
         return current
@@ -138,7 +147,7 @@ enum Keyboard {
 
     private static func readKey(_ device: IOHIDDevice, profile: UInt8, slot: UInt8, fn: Bool) throws -> [UInt8] {
         guard slot < 128 else { throw KeyboardError.invalidReply }
-        let reply = try request(device, opcode: fn ? 0x90 : 0x89, parameters: [profile, slot / 16], checkEcho: false)
+        let reply = try request(device, opcode: fn ? 0x90 : 0x89, parameters: [fn ? 0 : profile, slot / 16], checkEcho: false)
         guard !reply.allSatisfy({ $0 == 0xFF }) else { throw KeyboardError.invalidReply }
         let offset = Int(slot % 16) * 4
         return Array(reply[offset..<(offset + 4)])
@@ -169,6 +178,12 @@ enum Keyboard {
 
     static func readLighting(_ device: IOHIDDevice) throws -> Lighting {
         try Lighting(reply: request(device, opcode: 0x87))
+    }
+
+    static func writeSetting(_ device: IOHIDDevice, _ bytes: [UInt8]) throws {
+        try send(device, bytes)
+        // Firmware 274 can accept a report while dropping the write during the previous commit.
+        Thread.sleep(forTimeInterval: 0.6)
     }
 
     static func send(_ device: IOHIDDevice, _ bytes: [UInt8]) throws {

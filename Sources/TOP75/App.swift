@@ -552,6 +552,7 @@ struct KeySettingsView: View {
     @AppStorage("profileNames") private var storedNames = Data()
     @State private var changed: [Layer: [UInt8: KeyAssignment]] = [:]
     @State private var profile: UInt8?
+    @State private var sharedFn = false
     @State private var selectedProfile: UInt8 = 0
     @State private var source: UInt8 = 69
     @State private var fn = false
@@ -592,6 +593,9 @@ struct KeySettingsView: View {
                     Text("Fn").tag(true)
                 }
                 .onChange(of: fn) { readSelection() }
+                if fn, sharedFn, let profile, profile > 0 {
+                    Text(l("Profil 2 ve 3 aynı Fn katmanını kullanır.")).foregroundStyle(.secondary)
+                }
                 Picker(l("Fiziksel tuş"), selection: $source) {
                     ForEach(Self.keys.filter { Self.slots[$0.0] != nil }, id: \.0) { key in
                         Text(l(key.1)).tag(key.0)
@@ -654,7 +658,11 @@ struct KeySettingsView: View {
 
     private var markedKeys: Set<UInt8> {
         guard let profile else { return [] }
-        return Set(changed[Layer(profile: profile, fn: fn), default: [:]].keys)
+        return Set(changed[assignmentLayer(profile), default: [:]].keys)
+    }
+
+    private func assignmentLayer(_ profile: UInt8) -> Layer {
+        Layer(profile: fn && sharedFn && profile > 0 ? 1 : profile, fn: fn)
     }
 
     private func readSelection() {
@@ -664,9 +672,10 @@ struct KeySettingsView: View {
 
     private func loadProfile() {
         guard connected, !busy else { return }
-        run("Etkin profil okundu.", operation: { try Keyboard.profile() }) { current in
-            profile = current
-            selectedProfile = current
+        run("Etkin profil okundu.", operation: { try Keyboard.profileInfo() }) { current in
+            profile = current.profile
+            selectedProfile = current.profile
+            sharedFn = Keyboard.sharesFnLayer(current.firmware)
             readSelection()
         }
     }
@@ -778,7 +787,7 @@ struct KeySettingsView: View {
     private func writeAssignment(_ target: KeyAssignment, replacing previous: KeyAssignment, isUndo: Bool) {
         guard !busy, let slot = Self.slots[source], let profile, selectedProfile == profile else { return }
         let layer = fn
-        let location = Layer(profile: profile, fn: layer)
+        let location = assignmentLayer(profile)
         let key = source
         let success = isUndo ? "Tuş ataması geri alındı." : "Tuş atandı ve klavyeden doğrulandı."
         run(success, operation: {
