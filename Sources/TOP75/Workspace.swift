@@ -59,13 +59,14 @@ extension EnvironmentValues {
 }
 
 enum WorkspacePage: String, CaseIterable, Identifiable {
-    case lighting, keys, macros, display, device, guide
+    case lighting, schedule, keys, macros, display, device, guide
 
     var id: Self { self }
 
     var title: String {
         switch self {
         case .lighting: "Aydınlatma"
+        case .schedule: "Zamanlama"
         case .keys: "Tuşlar ve profiller"
         case .macros: "Makrolar"
         case .display: "Ekran"
@@ -77,6 +78,7 @@ enum WorkspacePage: String, CaseIterable, Identifiable {
     var symbol: String {
         switch self {
         case .lighting: "lightbulb"
+        case .schedule: "clock"
         case .keys: "keyboard"
         case .macros: "command"
         case .display: "display"
@@ -88,6 +90,7 @@ enum WorkspacePage: String, CaseIterable, Identifiable {
     var subtitle: String {
         switch self {
         case .lighting: "RGB efektlerini düzenle veya her tuşa kendi rengini ver."
+        case .schedule: "Klavye ışığının kapalı kalacağı saatleri seç."
         case .keys: "Klavye üzerindeki profilleri ve tuş atamalarını düzenle."
         case .macros: "Tuş vuruşlarını birleştir ve klavyedeki bir yuvaya kaydet."
         case .display: "Klavye ekranına bir fotoğraf veya animasyon yükle."
@@ -153,6 +156,7 @@ struct WorkspaceView: View {
             List(selection: selection) {
                 Section(l("Düzenle")) {
                     sidebarRow(.lighting)
+                    sidebarRow(.schedule)
                     sidebarRow(.keys)
                     sidebarRow(.macros)
                     sidebarRow(.display)
@@ -307,9 +311,11 @@ struct WorkspaceView: View {
         case .lighting:
             LightingView(
                 connection: $connection, bluetoothNeedsPermission: bluetoothDetected && connection == nil,
-                isActive: storedPage == .lighting, settingsRevision: transfer.settingsRevision
+                isActive: storedPage == .lighting, settingsRevision: transfer.settingsRevision,
+                openSchedule: { storedPage = .schedule }
             )
                 .disabled(transfer.isBusy)
+        case .schedule: LightingScheduleView()
         case .keys:
             KeySettingsView(connection: $connection, settingsRevision: transfer.settingsRevision)
                 .disabled(transfer.isBusy)
@@ -335,10 +341,9 @@ struct PreferencesView: View {
                 Text("English").tag(LanguagePreference.english)
                 Text("Türkçe").tag(LanguagePreference.turkish)
             }
-            LightingScheduleSettings()
         }
         .formStyle(.grouped)
-        .frame(width: 480, height: 400)
+        .frame(width: 400, height: 136)
     }
 }
 

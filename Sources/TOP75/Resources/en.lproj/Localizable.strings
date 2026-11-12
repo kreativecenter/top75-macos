@@ -323,3 +323,5 @@
 "Işık kapatma aralığı etkin" = "Lights-off interval active";
 "Zamanlama için klavye yanıtı bekleniyor" = "Waiting for the keyboard to respond";
 "Oturum açma" = "Login";
+"Zamanlama" = "Schedule";
+"Klavye ışığının kapalı kalacağı saatleri seç." = "Choose when to turn off the keyboard lights.";

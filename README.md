@@ -22,7 +22,7 @@ Pair **TOP75 BT3.0** with your Mac and open TOP75. Click **Allow Bluetooth acces
 
 ### Schedule lights off
 
-In **TOP75 → Settings → Lights-off schedule**, choose a daily start and end time, such as 23:00–08:00. TOP75 turns the keyboard lighting off and brings back the previous effect when the interval ends. Close the window to keep the app running, or enable **Start TOP75 at login** to start it automatically. **Skip this interval** brings the lighting back early. The keyboard needs an active USB or Bluetooth connection for TOP75 to apply the change.
+In the **Schedule** sidebar panel, choose a daily start and end time, such as 23:00–08:00. TOP75 turns the keyboard lighting off and brings back the previous effect when the interval ends. Close the window to keep the app running, or enable **Start TOP75 at login** to start it automatically. **Skip this interval** brings the lighting back early. The keyboard needs an active USB or Bluetooth connection for TOP75 to apply the change.
 
 ## Screenshots
 
@@ -48,6 +48,7 @@ In **TOP75 → Settings → Lights-off schedule**, choose a daily start and end 
 | Panel | Controls |
 | --- | --- |
 | **Lighting** | Preview RGB effects on the keyboard diagram, even without a USB connection. Adjust color, brightness, speed and direction before applying. Switch to Per-key Color to select and paint several keys together, review the draft and apply it in one action. Save up to five presets on the Mac. |
+| **Schedule** | Choose when the keyboard lights turn off each day, skip the current interval, or start TOP75 automatically at login. |
 | **Keys & Profiles** | See the current assignment as soon as you select a key or layer. Edit key, media and macro assignments, see modified keys on the layout and name the three onboard profiles on your Mac. |
 | **Macros** | Edit, reorder and delete press and release events. Preview one pass on the keyboard diagram without sending keystrokes. |
 | **Display** | Drop a PNG, JPEG or GIF and preview the 128 × 128 output with Fit or Centre Crop. Send stills to one of five slots or upload a GIF with up to 25 frames. Upload progress stays visible when switching panels. |

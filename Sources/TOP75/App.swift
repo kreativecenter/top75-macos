@@ -11,6 +11,7 @@ struct Entry: Identifiable, Hashable {
     var destination: WorkspacePage? {
         switch group {
         case "Aydınlatma": .lighting
+        case "Zamanlama": .schedule
         case "Tuşlar ve profiller": .keys
         case "Makrolar": .macros
         case "Ekran": .display
@@ -25,6 +26,7 @@ struct Entry: Identifiable, Hashable {
         Entry(title: "USB bağlantısı", group: "Bağlantı", shortcut: "Mod anahtarı → OFF", detail: "Veri kablosunu bağla ve mod anahtarını OFF konumuna getir. Klavye ekranında USB durumunu kontrol et.", keywords: "wired cable kablo"),
         Entry(title: "Arka ışığı aç veya kapat", group: "Aydınlatma", shortcut: "Fn + Delete", detail: "Klavye aydınlatmasını açar veya kapatır.", keywords: "rgb led backlight"),
         Entry(title: "Aydınlatma efekti", group: "Aydınlatma", shortcut: "Fn + Home", detail: "18 aydınlatma efekti arasında geçiş yapar.", keywords: "rgb led lighting"),
+        Entry(title: "Işık kapatma aralığı", group: "Zamanlama", shortcut: "", detail: "Klavye ışığının kapalı kalacağı saatleri seç.", keywords: "night lighting time timer schedule gece saat zamanlayıcı"),
         Entry(title: "Parlaklık", group: "Aydınlatma", shortcut: "Fn + ↑ / ↓", detail: "Arka ışığı beş parlaklık seviyesinden birine ayarlar.", keywords: "rgb brightness ışık"),
         Entry(title: "Efekt hızı", group: "Aydınlatma", shortcut: "Fn + ← / →", detail: "Aydınlatma efektinin hızını beş seviyede değiştirir.", keywords: "rgb speed animasyon"),
         Entry(title: "Tek renk ve efekt yönü", group: "Aydınlatma", shortcut: "Fn + PgUp / PgDn", detail: "PgUp tek renk moduna geçer. PgDn destekleyen efektlerde yönü değiştirir.", keywords: "rgb monochrome direction"),
@@ -260,6 +262,7 @@ struct LightingView: View {
     let bluetoothNeedsPermission: Bool
     let isActive: Bool
     let settingsRevision: Int
+    let openSchedule: () -> Void
 
     private let scheduler = LightingScheduler.shared
     @State private var perKey = false
@@ -299,8 +302,7 @@ struct LightingView: View {
                         HStack {
                             Text(l(scheduler.status)).foregroundStyle(.secondary)
                             if scheduler.canSkip { Button(l("Bu aralığı atla"), action: scheduler.skipCurrentInterval) }
-                            SettingsLink { Image(systemName: "gearshape") }
-                                .help(l("Uygulama ayarları"))
+                            Button(l("Zamanlama"), action: openSchedule)
                         }
                     } label: {
                         Label(l("Işık kapatma aralığı"), systemImage: "moon")
