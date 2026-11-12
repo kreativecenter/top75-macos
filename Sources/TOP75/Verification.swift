@@ -1,0 +1,66 @@
+import Foundation
+import ImageIO
+
+enum Verification {
+    static func verifyRestore() throws {
+        let blank = Array(repeating: [UInt8](repeating: 0, count: 4), count: 128)
+        let lighting = Lighting(effect: 1, speed: 2, brightness: 3, flags: 7, rgb: 0x10A0FF)
+        let options = DeviceOptions(debounce: 2, automaticOS: false, timers: [60, 60, 120, 120])
+        let profiles = Array(repeating: SettingsSnapshot.Profile(base: blank, function: blank), count: 3)
+        let colors = Array(repeating: UInt32(0), count: 128)
+        let current = SettingsSnapshot(
+            formatVersion: 1, device: SettingsSnapshot.model, recordedAt: Date(),
+            activeProfile: 0, firmware: 123, lighting: lighting, options: options, keyColors: colors, profiles: profiles
+        )
+        var changedOptions = options
+        changedOptions.debounce = 4
+        changedOptions.timers[2] = 240
+        var changedColors = colors
+        changedColors[9] = 0xFF00FF
+        var fn = blank
+        fn[78] = [3, 0, 233, 0]
+        var changedProfiles = profiles
+        changedProfiles[2] = .init(base: blank, function: fn)
+        let backup = SettingsSnapshot(
+            formatVersion: 1, device: SettingsSnapshot.model, recordedAt: Date(),
+            activeProfile: 1, firmware: 123, lighting: lighting, options: changedOptions,
+            keyColors: changedColors, profiles: changedProfiles
+        )
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let data = try encoder.encode(backup)
+        let parsed = try SettingsSnapshot.decode(data)
+        let plan = try SnapshotRestorePlan(current: current, backup: parsed)
+        precondition(Set(plan.changes) == [.debounce, .timer(2), .color(9), .key(profile: 2, fn: true, slot: 78), .activeProfile])
+        let selected = plan.selectedOptions([.timer(2)], from: current.options)
+        precondition(selected.debounce == 2 && selected.timers == [60, 60, 240, 120])
+        var invalid = data
+        let modelRange = invalid.range(of: Data(SettingsSnapshot.model.utf8))!
+        invalid.replaceSubrange(modelRange, with: "Another keyboard".utf8)
+        precondition((try? SettingsSnapshot.decode(invalid)) == nil)
+    }
+
+    static func verifyArtwork() throws {
+        let data = NSMutableData()
+        let destination = CGImageDestinationCreateWithData(data, "com.compuserve.gif" as CFString, 2, nil)!
+        let canvas = CGContext(
+            data: nil, width: 40, height: 20, bitsPerComponent: 8, bytesPerRow: 160,
+            space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
+        )!
+        for (red, delay) in [(true, 0.08), (false, 0.12)] {
+            canvas.setFillColor(red: red ? 1 : 0, green: red ? 0 : 1, blue: 0, alpha: 1)
+            canvas.fill(CGRect(x: 0, y: 0, width: 40, height: 20))
+            let options = [kCGImagePropertyGIFDictionary: [kCGImagePropertyGIFDelayTime: delay]]
+            CGImageDestinationAddImage(destination, canvas.makeImage()!, options as CFDictionary)
+        }
+        precondition(CGImageDestinationFinalize(destination))
+        let fit = try ScreenArtwork(data: data as Data, sizing: .fit)
+        let crop = try ScreenArtwork(data: data as Data, sizing: .crop)
+        precondition(fit.frames.count == 2 && fit.delay == 100 && crop.delay == 100)
+        precondition(crop.previews.allSatisfy { $0.width == 128 && $0.height == 128 })
+        precondition(fit.frames[0].prefix(2) == [0, 0])
+        precondition(crop.frames[0].prefix(2) == [0xF8, 0] && crop.frames[1].prefix(2) == [0x07, 0xE0])
+        let pixels = crop.previews[0].dataProvider!.data! as Data
+        precondition(pixels.prefix(4) == Data([255, 0, 0, 255]))
+    }
+}

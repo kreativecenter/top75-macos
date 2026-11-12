@@ -14,7 +14,7 @@
 2. Connect the keyboard with a **USB data cable**. Set its mode switch to **OFF** and check that the keyboard display shows **USB**.
 3. Open TOP75. **USB Connected** appears in the sidebar. Read the current setting, make your changes, and click the matching **Apply** button.
 
-**English and Türkçe** are available in **TOP75 → Settings** (⌘,). The app follows your Mac’s language by default and switches immediately when you choose a language. Press **⌘F** to search the built-in guide.
+**English and Türkçe** are available in **TOP75 → Settings** (⌘,). The app follows your Mac’s language by default and switches immediately when you choose a language. Press **⌘F** to search the guide and open the matching panel. Use **Connection Help** in the sidebar for USB setup.
 
 ## Screenshots
 
@@ -26,24 +26,33 @@
 
 ![TOP75 Keys and Profiles panel showing Fn + F12 loaded as a media assignment](docs/assets/keys-profiles.png)
 
+**Macro timeline and GIF preview**
+
+<table>
+  <tr>
+    <td width="49%"><img src="docs/assets/macros.png" alt="Macro timeline with Command and K highlighted during playback"></td>
+    <td width="51%"><img src="docs/assets/display.png" alt="128 by 128 GIF preview with Fit and Centre Crop controls"></td>
+  </tr>
+</table>
+
 ## What you can configure
 
 | Panel | Controls |
 | --- | --- |
-| **Lighting** | Preview RGB effects on the keyboard diagram, even without a USB connection. Adjust color, brightness, speed and direction before applying. Pick a key on the layout to set its color. Save up to five presets on the Mac. |
-| **Keys & Profiles** | Select a physical key on the layout, then edit its base or Fn assignment. Assign a key, media command or onboard macro. Switch between three profiles. |
-| **Macros** | Edit keyboard strokes, delays and repeat counts in onboard macro slots. |
-| **Display** | Preview artwork, then send a PNG or JPEG to one of five still-image slots. GIF upload is available for animations of up to 25 frames. |
-| **Device Settings** | Adjust debounce, automatic OS detection, and the Bluetooth and 2.4 GHz sleep timers. Export keymaps, lighting and device settings to JSON. |
+| **Lighting** | Preview RGB effects on the keyboard diagram, even without a USB connection. Adjust color, brightness, speed and direction before applying. Switch to Per-key Color to select and paint several keys together, review the draft and apply it in one action. Save up to five presets on the Mac. |
+| **Keys & Profiles** | See the current assignment as soon as you select a key or layer. Edit key, media and macro assignments, see modified keys on the layout and name the three onboard profiles on your Mac. |
+| **Macros** | Edit, reorder and delete press and release events. Preview one pass on the keyboard diagram without sending keystrokes. |
+| **Display** | Drop a PNG, JPEG or GIF and preview the 128 × 128 output with Fit or Centre Crop. Send stills to one of five slots or upload a GIF with up to 25 frames. Upload progress stays visible when switching panels. |
+| **Device Settings** | Adjust debounce, automatic OS detection, and the Bluetooth and 2.4 GHz sleep timers. Export a JSON backup. Compare it with the keyboard and restore selected key assignments, colors and device settings. |
 
-Configuration runs locally over USB. The app reads back supported settings after writes and shows the result. Lighting and key assignments support undo after a verified change.
+Configuration runs locally over USB. The app reads back supported settings after writes and shows the result. Effects, per-key colors and key assignments support undo after a verified change. JSON restore requires the same firmware as the backup. Profile names are stored on the Mac. Macro contents and display artwork are outside the JSON format.
 
 ## Compatibility
 
 - **Keyboard** — Darmoshark TOP75, USB device ID **957**. The app checks the keyboard’s reported ID before reading or writing settings.
 - **Mac** — macOS **14 Sonoma** or later. The DMG and ZIP contain the same universal app for Apple Silicon and Intel. Hardware testing has used an Apple Silicon Mac.
 - **Connection** — use wired USB for configuration. Bluetooth and 2.4 GHz configuration are outside the current release.
-- **Release status** — check the release notes for signing and notarization status. Still-image upload and display have been confirmed on a TOP75. GIF playback needs further hardware verification. The app can export a settings snapshot. Restoring it, firmware flashing, live music or screen effects, and mouse-event macros remain open.
+- **Release status** — check the release notes for signing and notarization status. Still-image upload and display have been confirmed on a TOP75. On-device GIF playback and selective restore still need physical validation. Firmware flashing, live music or screen effects, and mouse-event macros remain open.
 
 ## Build from source
 
@@ -55,7 +64,7 @@ cd top75-macos
 ./scripts/build.sh
 ```
 
-The build creates `dist/TOP75.app` and `dist/TOP75-macOS.zip`. It checks the signature, both languages, search, the keyboard diagram’s slot mapping, and the report, macro and image encoders. Open `Package.swift` in Xcode or run `swift run TOP75` for development.
+The build creates `dist/TOP75.app` and `dist/TOP75-macOS.zip`. It checks the signature, both languages, search, the keyboard diagram’s slot mapping, and the report and macro encoders, selective restore and the GIF rendering pipeline. Open `Package.swift` in Xcode or run `swift run TOP75` for development.
 
 ## Developer ID distribution
 

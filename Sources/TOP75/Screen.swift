@@ -5,49 +5,76 @@ import ImageIO
 struct ScreenArtwork: Sendable {
     static let side = 128
     static let maximumFrames = 25
+    enum Sizing: String, CaseIterable, Sendable {
+        case fit, crop
+
+        var title: String { self == .fit ? "Sığdır" : "Ortadan kırp" }
+    }
+
     let frames: [[UInt8]]
     let delay: UInt8
-    let previewPNG: Data?
+    let previews: [CGImage]
 
-    init(url: URL) throws {
+    init(url: URL, sizing: Sizing = .fit) throws {
+        try self.init(data: Self.read(url), sizing: sizing)
+    }
+
+    static func read(_ url: URL) throws -> Data {
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
         let values = try url.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey])
-        guard values.isRegularFile == true, let size = values.fileSize,
-              size <= 20 * 1024 * 1024,
-              let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+        let limit = 20 * 1024 * 1024
+        guard values.isRegularFile == true, let size = values.fileSize, size <= limit else {
             throw ScreenError.invalidFile
         }
+        let handle = try FileHandle(forReadingFrom: url)
+        defer { try? handle.close() }
+        guard let data = try handle.read(upToCount: limit + 1), data.count <= limit else {
+            throw ScreenError.invalidFile
+        }
+        return data
+    }
+
+    init(data: Data, sizing: Sizing) throws {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let type = CGImageSourceGetType(source) as String?,
+              ["public.png", "public.jpeg", "com.compuserve.gif"].contains(type)
+        else { throw ScreenError.invalidFile }
         let count = CGImageSourceGetCount(source)
         guard (1...Self.maximumFrames).contains(count) else { throw ScreenError.frameCount }
         var frames: [[UInt8]] = []
+        var previews: [CGImage] = []
         var milliseconds: Double = 0
-        var preview: Data?
         for index in 0..<count {
+            let properties = CGImageSourceCopyPropertiesAtIndex(source, index, nil) as? [CFString: Any]
+            var resolution = Self.side
+            if sizing == .crop, let width = properties?[kCGImagePropertyPixelWidth] as? Double,
+               let height = properties?[kCGImagePropertyPixelHeight] as? Double, min(width, height) > 0 {
+                resolution = Int(min(4096, (Double(Self.side) * max(width, height) / min(width, height)).rounded(.up)))
+            }
             let options: [CFString: Any] = [
                 kCGImageSourceCreateThumbnailFromImageAlways: true,
                 kCGImageSourceCreateThumbnailWithTransform: true,
-                kCGImageSourceThumbnailMaxPixelSize: Self.side
+                kCGImageSourceThumbnailMaxPixelSize: resolution
             ]
             guard let image = CGImageSourceCreateThumbnailAtIndex(source, index, options as CFDictionary) else {
                 throw ScreenError.invalidFile
             }
-            let rendered = try Self.render(image)
-            frames.append(rendered.bytes)
-            if index == 0 { preview = rendered.preview }
-            let properties = CGImageSourceCopyPropertiesAtIndex(source, index, nil) as? [CFString: Any]
+            let frame = try Self.render(image, sizing: sizing)
+            frames.append(frame)
+            previews.append(try Self.preview(frame))
             let gif = properties?[kCGImagePropertyGIFDictionary] as? [CFString: Any]
             let duration = gif?[kCGImagePropertyGIFUnclampedDelayTime] as? Double
                 ?? gif?[kCGImagePropertyGIFDelayTime] as? Double
                 ?? 0.1
-            milliseconds += max(0.02, duration) * 1000
+            milliseconds += (duration.isFinite ? max(0.02, duration) : 0.1) * 1000
         }
         self.frames = frames
+        self.previews = previews
         delay = count == 1 ? 0 : UInt8(min(255, (milliseconds / Double(count)).rounded()))
-        previewPNG = preview
     }
 
-    private static func render(_ image: CGImage) throws -> (bytes: [UInt8], preview: Data?) {
+    private static func render(_ image: CGImage, sizing: Sizing) throws -> [UInt8] {
         guard let colorSpace = CGColorSpace(name: CGColorSpace.sRGB),
               let canvas = CGContext(
                 data: nil, width: side, height: side, bitsPerComponent: 8, bytesPerRow: side * 4,
@@ -56,23 +83,45 @@ struct ScreenArtwork: Sendable {
               ) else { throw ScreenError.invalidFile }
         canvas.setFillColor(gray: 0, alpha: 1)
         canvas.fill(CGRect(x: 0, y: 0, width: side, height: side))
-        let scale = min(Double(side) / Double(image.width), Double(side) / Double(image.height))
+        let scaleX = Double(side) / Double(image.width)
+        let scaleY = Double(side) / Double(image.height)
+        let scale = sizing == .fit ? min(scaleX, scaleY) : max(scaleX, scaleY)
         let width = Double(image.width) * scale
         let height = Double(image.height) * scale
+        canvas.interpolationQuality = .high
         canvas.draw(image, in: CGRect(x: (Double(side) - width) / 2, y: (Double(side) - height) / 2, width: width, height: height))
         guard let data = canvas.data else { throw ScreenError.invalidFile }
         let rgba = data.assumingMemoryBound(to: UInt8.self)
-        let bytes = rgb565 { x, y in
+        return rgb565 { x, y in
             let offset = (y * side + x) * 4
             return (rgba[offset], rgba[offset + 1], rgba[offset + 2])
         }
-        let preview = NSMutableData()
-        if let rendered = canvas.makeImage(),
-           let destination = CGImageDestinationCreateWithData(preview, "public.png" as CFString, 1, nil) {
-            CGImageDestinationAddImage(destination, rendered, nil)
-            if CGImageDestinationFinalize(destination) { return (bytes, preview as Data) }
+    }
+
+    private static func preview(_ bytes: [UInt8]) throws -> CGImage {
+        var pixels = [UInt8](repeating: 255, count: side * side * 4)
+        for x in 0..<side {
+            for y in 0..<side {
+                let input = (x * side + y) * 2
+                let output = (y * side + x) * 4
+                let value = UInt16(bytes[input]) << 8 | UInt16(bytes[input + 1])
+                let r = UInt8(value >> 11)
+                let g = UInt8((value >> 5) & 63)
+                let b = UInt8(value & 31)
+                pixels[output] = r << 3 | r >> 2
+                pixels[output + 1] = g << 2 | g >> 4
+                pixels[output + 2] = b << 3 | b >> 2
+            }
         }
-        return (bytes, nil)
+        guard let provider = CGDataProvider(data: Data(pixels) as CFData),
+              let colorSpace = CGColorSpace(name: CGColorSpace.sRGB),
+              let image = CGImage(
+                width: side, height: side, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: side * 4,
+                space: colorSpace,
+                bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.noneSkipLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue),
+                provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent
+              ) else { throw ScreenError.invalidFile }
+        return image
     }
 
     static func rgb565(pixel: (Int, Int) -> (UInt8, UInt8, UInt8)) -> [UInt8] {

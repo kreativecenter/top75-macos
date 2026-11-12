@@ -8,6 +8,17 @@ struct Entry: Identifiable, Hashable {
     let keywords: String
     var id: String { title }
 
+    var destination: WorkspacePage? {
+        switch group {
+        case "Aydınlatma": .lighting
+        case "Tuşlar ve profiller": .keys
+        case "Makrolar": .macros
+        case "Ekran": .display
+        case "Cihaz ayarları": .device
+        default: nil
+        }
+    }
+
     static let catalog = [
         Entry(title: "Mac modu", group: "Sistem", shortcut: "Fn + Sağ Ctrl · 3 sn", detail: "Mac multimedya tuşlarını etkinleştirir. Windows moduna dönmek için aynı tuşları tekrar 3 saniye basılı tut.", keywords: "macOS iOS windows multimedia"),
         Entry(title: "Bluetooth eşleştirme", group: "Bağlantı", shortcut: "Fn + E / R / T · basılı tut", detail: "Üç Bluetooth yuvasından birini seç. Mavi ışık hızlı yanıp sönerken Mac’in Bluetooth ayarlarında TOP75 BT3.0 veya BT5.0 adını ara.", keywords: "bt pairing kablosuz"),
@@ -20,6 +31,10 @@ struct Entry: Identifiable, Hashable {
         Entry(title: "Özel tuş aydınlatması", group: "Aydınlatma", shortcut: "Fn + U / I / O / P", detail: "Bir aydınlatma yuvası seç. Fn + ters eğik çizgi tuşuyla kaydı başlat, renkleri değiştirmek için ilgili tuşlara bas ve aynı kısayolla kaydet.", keywords: "rgb custom led per key profil"),
         Entry(title: "Klavye ekranını aç veya kapat", group: "Ekran", shortcut: "Fn + Caps Lock", detail: "Klavye üzerindeki renkli ekranı açar veya kapatır.", keywords: "lcd display screen"),
         Entry(title: "Ekran görseli ve GIF", group: "Ekran", shortcut: "", detail: "Ekran bölümünden PNG, JPEG veya GIF seçip klavyeye gönderebilirsin.", keywords: "lcd animasyon resim display"),
+        Entry(title: "Tuş ataması", group: "Tuşlar ve profiller", shortcut: "", detail: "Bir fiziksel tuş seç, mevcut atamasını gör ve temel veya Fn katmanında düzenle.", keywords: "remap mapping fn key assignment"),
+        Entry(title: "Profil seçimi ve adlandırma", group: "Tuşlar ve profiller", shortcut: "", detail: "Üç cihaz profili arasında geçiş yap ve profillere bu Mac’te ad ver.", keywords: "profile name rename"),
+        Entry(title: "Makro düzenleme ve önizleme", group: "Makrolar", shortcut: "", detail: "Tuş olaylarını sırala, gecikmelerini düzenle ve zaman çizelgesini önizle.", keywords: "macro keyboard events timeline preview"),
+        Entry(title: "Ayar kaydını geri yükleme", group: "Cihaz ayarları", shortcut: "", detail: "Bir TOP75 JSON ayar kaydını aç, klavyedeki ayarlarla karşılaştır ve geri yüklemek istediğin farkları seç.", keywords: "restore backup json import export snapshot"),
         Entry(title: "Pil ve şarj", group: "Sistem", shortcut: "", detail: "Pil simgesi kırmızıysa klavyeyi şarj et. Kablo bağlıyken ekrandaki pil animasyonu şarj durumunu gösterir.", keywords: "batarya battery charge")
     ]
 
@@ -48,6 +63,8 @@ struct Entry: Identifiable, Hashable {
 struct GuideView: View {
     @Environment(\.appLanguage) private var l
     let focusRequest: Int
+    let connectionRequest: Int
+    var openPage: (WorkspacePage) -> Void
     @State private var query = ""
     @State private var selection: Entry.ID?
     @FocusState private var searchFocused: Bool
@@ -101,6 +118,11 @@ struct GuideView: View {
                                 .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
                         }
                         Text(l(entry.detail)).foregroundStyle(.secondary).textSelection(.enabled)
+                        if let page = entry.destination {
+                            Button(l.format("%@ panelini aç", l(page.title)), systemImage: "arrow.right.circle") {
+                                openPage(page)
+                            }
+                        }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(24)
@@ -111,6 +133,13 @@ struct GuideView: View {
         .onChange(of: query, initial: true) { selection = results.first?.id }
         .onChange(of: l) { selection = results.first?.id }
         .onChange(of: focusRequest, initial: true) { if focusRequest > 0 { searchFocused = true } }
+        .onChange(of: connectionRequest, initial: true) {
+            if connectionRequest > 0 {
+                query = l("USB bağlantısı")
+                selection = "USB bağlantısı"
+                searchFocused = false
+            }
+        }
     }
 
     private func row(_ entry: Entry) -> some View {
@@ -172,7 +201,11 @@ enum Launch {
             precondition(decoded.strokes.count == 2 && decoded.strokes[1].delay == 250)
             let pixels = ScreenArtwork.rgb565 { x, y in x == 0 && y == 1 ? (255, 0, 0) : (0, 0, 255) }
             precondition(pixels.count == 32_768 && pixels.prefix(6) == [0, 31, 248, 0, 0, 31])
-            print("Localization, search, keyboard layout, HID packet, macro and RGB565 checks passed.")
+            precondition(Entry.search("restore backup", language: english).first?.destination == .device)
+            precondition(english("Geri yükleme önizlemesi") == "Restore preview")
+            try! Verification.verifyRestore()
+            try! Verification.verifyArtwork()
+            print("Localization, guide, layout, HID, macro, restore and GIF/RGB565 checks passed.")
             return
         }
         TOP75App.main()
@@ -208,12 +241,21 @@ struct LightingView: View {
         (6, "Yağmur damlası"), (7, "Yılan"), (8, "Tuşa basınca"), (9, "Birleşme"),
         (10, "Sinüs dalgası"), (11, "Kaleydoskop"), (12, "Çizgi dalgası"),
         (14, "Lazer"), (15, "Dairesel dalga"), (16, "Parıltı"),
-        (17, "Yağmur"), (18, "Meteor"), (19, "Tuşa basınca sön"), (66, "Tuş başına renk")
+        (17, "Yağmur"), (18, "Meteor"), (19, "Tuşa basınca sön")
     ]
+
+    static func effectName(_ effect: UInt8, language: AppLanguage) -> String {
+        if effect == 66 { return language("Tuş başına renk") }
+        if let match = effects.first(where: { $0.0 == effect }) { return language(match.1) }
+        return language.format("Mevcut efekt (%@)", String(effect))
+    }
 
     let connected: Bool
     let isActive: Bool
+    let settingsRevision: Int
 
+    @State private var perKey = false
+    @State private var keyColorDraft = KeyColorDraft()
     @State private var confirmed: Lighting?
     @State private var baseline: Lighting?
     @State private var undoLighting: Lighting?
@@ -233,74 +275,101 @@ struct LightingView: View {
     var body: some View {
         Form {
             Section {
-                if let preview = requestedLighting {
-                    LightingPreview(lighting: preview, palette: palette, isActive: isActive)
-                        .padding(.vertical, 4)
+                Picker(l("Aydınlatma düzenleyicisi"), selection: $perKey) {
+                    Text(l("Efektler")).tag(false)
+                    Text(l("Tuş başına renk")).tag(true)
                 }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .disabled(busy || keyColorDraft.action.busy)
             }
-            Section(l("Klavye aydınlatması")) {
-                Picker(l("Efekt"), selection: Binding(get: { effect }, set: { effect = $0; direction = 0 })) {
-                    if !Self.effects.contains(where: { $0.0 == effect }) {
-                        Text(l.format("Mevcut efekt (%@)", String(effect))).tag(effect)
-                    }
-                    ForEach(Self.effects, id: \.0) { item in
-                        Text(l(item.1)).tag(item.0)
-                    }
-                }
-                if effect != 0 && effect != 66 {
-                    if effect != 3 {
-                        Toggle(l("Gökkuşağı"), isOn: $rainbow)
-                        if !rainbow {
-                            ColorPicker(l("Renk"), selection: $color, supportsOpacity: false)
-                            ColorSwatches(color: $color)
-                        }
-                    }
-                    if [4, 7, 11, 12, 15].contains(effect) {
-                        Picker(l("Yön"), selection: $direction) {
-                            ForEach(0..<(effect == 4 ? 4 : 2), id: \.self) { value in
-                                Text(l(directionName(value))).tag(value)
-                            }
-                        }
-                    }
-                    LevelSlider(title: "Parlaklık", value: $brightness, icon: "sun.max")
-                    if effect != 1 {
-                        LevelSlider(title: "Hız", value: $speed, icon: "speedometer")
-                    }
-                }
+            if perKey {
+                KeyColorControls(palette: $palette, connected: connected, modeActive: confirmed?.effect == 66, onActivate: {
+                    write(Lighting(effect: 66, speed: 0, brightness: 0, flags: 7, rgb: 0), keepEffectDraft: true)
+                }, draft: $keyColorDraft)
+                .disabled(busy)
+                if busy { ProgressView().controlSize(.small) }
+                if !status.isEmpty { Text(l(status)).foregroundStyle(.secondary) }
+            } else {
+                effectControls
             }
-            .disabled(busy)
-            Section(l("Yerel aydınlatma ön ayarları")) {
-                Picker(l("Ön ayar"), selection: $presetSlot) {
-                    ForEach(1...5, id: \.self) { value in Text(l.format("Ön ayar %@", String(value))).tag(value) }
-                }
-                HStack {
-                    Button(l("Taslağı kaydet")) { savePreset() }.disabled(requestedLighting == nil)
-                    Button(l("Ön ayarı aç")) {
-                        if let preset = presets[presetSlot] {
-                            load(preset)
-                            status = "Ön ayar açıldı. Klavyeye göndermek için Uygula’ya bas."
-                        }
-                    }
-                    .disabled(presets[presetSlot] == nil)
-                }
-            }
-            .disabled(busy)
-            KeyColorControls(palette: $palette) {
-                write(Lighting(effect: 66, speed: 0, brightness: 0, flags: 7, rgb: 0))
-            }
-            .disabled(!connected || confirmed == nil || busy)
         }
         .formStyle(.grouped)
-        .safeAreaInset(edge: .bottom, spacing: 0) { actionBar }
+        .safeAreaInset(edge: .bottom, spacing: 0) { if !perKey { actionBar } }
+        .onChange(of: settingsRevision) {
+            confirmed = nil
+            undoLighting = nil
+            palette = []
+            keyColorDraft.undo = [:]
+            if connected { read() }
+        }
         .onChange(of: connected, initial: true) { _, available in
             if !available {
                 confirmed = nil
                 undoLighting = nil
                 palette = []
+                keyColorDraft.undo = [:]
             } else if confirmed == nil {
                 read()
             }
         }
+    }
+
+    @ViewBuilder
+    private var effectControls: some View {
+        Section {
+            if let preview = requestedLighting {
+                LightingPreview(lighting: preview, palette: palette, isActive: isActive)
+                    .padding(.vertical, 4)
+            }
+        }
+        Section(l("Klavye aydınlatması")) {
+            Picker(l("Efekt"), selection: Binding(get: { effect }, set: { effect = $0; direction = 0 })) {
+                if !Self.effects.contains(where: { $0.0 == effect }) {
+                    Text(effect == 66 ? l("Tuş başına renk") : l.format("Mevcut efekt (%@)", String(effect))).tag(effect)
+                }
+                ForEach(Self.effects, id: \.0) { item in
+                    Text(l(item.1)).tag(item.0)
+                }
+            }
+            if effect != 0 && effect != 66 {
+                if effect != 3 {
+                    Toggle(l("Gökkuşağı"), isOn: $rainbow)
+                    if !rainbow {
+                        ColorPicker(l("Renk"), selection: $color, supportsOpacity: false)
+                        ColorSwatches(color: $color)
+                    }
+                }
+                if [4, 7, 11, 12, 15].contains(effect) {
+                    Picker(l("Yön"), selection: $direction) {
+                        ForEach(0..<(effect == 4 ? 4 : 2), id: \.self) { value in
+                            Text(l(directionName(value))).tag(value)
+                        }
+                    }
+                }
+                LevelSlider(title: "Parlaklık", value: $brightness, icon: "sun.max")
+                if effect != 1 {
+                    LevelSlider(title: "Hız", value: $speed, icon: "speedometer")
+                }
+            }
+        }
+        .disabled(busy)
+        Section(l("Yerel aydınlatma ön ayarları")) {
+            Picker(l("Ön ayar"), selection: $presetSlot) {
+                ForEach(1...5, id: \.self) { value in Text(l.format("Ön ayar %@", String(value))).tag(value) }
+            }
+            HStack {
+                Button(l("Taslağı kaydet")) { savePreset() }.disabled(requestedLighting == nil)
+                Button(l("Ön ayarı aç")) {
+                    if let preset = presets[presetSlot] {
+                        load(preset)
+                        status = "Ön ayar açıldı. Klavyeye göndermek için Uygula’ya bas."
+                    }
+                }
+                .disabled(presets[presetSlot] == nil)
+            }
+        }
+        .disabled(busy)
     }
 
     private var hasChanges: Bool {
@@ -388,7 +457,7 @@ struct LightingView: View {
     }
 
     private var requestedLighting: Lighting? {
-        guard Self.effects.contains(where: { $0.0 == effect }), let rgb = color.rgb24 else { return nil }
+        guard (effect == 66 || Self.effects.contains(where: { $0.0 == effect })), let rgb = color.rgb24 else { return nil }
         if effect == 0 { return Lighting(effect: 0, speed: 0, brightness: 0, flags: 7, rgb: 0) }
         if effect == 66 { return Lighting(effect: 66, speed: 0, brightness: 0, flags: 7, rgb: 0) }
         let supportsDirection = [4, 7, 11, 12, 15].contains(effect)
@@ -400,12 +469,15 @@ struct LightingView: View {
         )
     }
 
-    private func write(_ requested: Lighting, isUndo: Bool = false) {
-        guard connected, !busy, let previous = confirmed else { return }
+    private func write(_ requested: Lighting, isUndo: Bool = false, keepEffectDraft: Bool = false) {
+        guard connected, !busy else { return }
+        let previous = confirmed
+        let pending = keepEffectDraft && hasChanges ? requestedLighting : nil
         let success = isUndo ? "Aydınlatma geri alındı." : "Aydınlatma uygulandı ve klavyeden doğrulandı."
-        run(success, operation: { try Keyboard.apply(requested, replacing: previous) }) { current in
+        run(success, operation: { try Keyboard.apply(requested, replacing: previous ?? Keyboard.lighting()) }) { current in
             undoLighting = isUndo ? nil : previous
             accept(current)
+            if let pending { load(pending) }
         }
     }
 
@@ -470,6 +542,15 @@ struct KeySettingsView: View {
     }()
     static let slots: [UInt8: UInt8] = [4: 9, 5: 40, 6: 28, 7: 21, 8: 20, 9: 27, 10: 33, 11: 39, 12: 50, 13: 45, 14: 51, 15: 57, 16: 52, 17: 46, 18: 56, 19: 62, 20: 8, 21: 26, 22: 15, 23: 32, 24: 44, 25: 34, 26: 14, 27: 22, 28: 38, 29: 16, 30: 7, 31: 13, 32: 19, 33: 25, 34: 31, 35: 37, 36: 43, 37: 49, 38: 55, 39: 61, 40: 81, 41: 0, 42: 79, 43: 2, 44: 41, 45: 67, 46: 73, 47: 68, 48: 74, 49: 80, 50: 75, 51: 63, 52: 69, 53: 1, 54: 58, 55: 64, 56: 70, 57: 3, 58: 12, 59: 18, 60: 24, 61: 30, 62: 36, 63: 42, 64: 48, 65: 54, 66: 60, 67: 66, 68: 72, 69: 78, 74: 86, 75: 87, 76: 85, 78: 88, 79: 89, 80: 77, 81: 83, 82: 82, 100: 10, 224: 5, 225: 4, 226: 17, 227: 11, 228: 71, 229: 76, 230: 59]
 
+    let connected: Bool
+    let settingsRevision: Int
+    private struct Layer: Hashable {
+        let profile: UInt8
+        let fn: Bool
+    }
+
+    @AppStorage("profileNames") private var storedNames = Data()
+    @State private var changed: [Layer: [UInt8: KeyAssignment]] = [:]
     @State private var profile: UInt8?
     @State private var selectedProfile: UInt8 = 0
     @State private var source: UInt8 = 69
@@ -484,9 +565,20 @@ struct KeySettingsView: View {
         Form {
             Section(l("Etkin profil")) {
                 Picker(l("Profil"), selection: $selectedProfile) {
-                    ForEach(0..<3) { profile in Text(l.format("Profil %@", String(profile + 1))).tag(UInt8(profile)) }
+                    ForEach(0..<3) { profile in
+                        let name = profileNames[UInt8(profile), default: ""].trimmingCharacters(in: .whitespacesAndNewlines)
+                        Text(name.isEmpty ? l.format("Profil %@", String(profile + 1)) : name).tag(UInt8(profile))
+                    }
                 }
-                .disabled(profile == nil || busy)
+                .disabled(busy)
+                TextField(l("Bu Mac’teki profil adı"), text: Binding(
+                    get: { profileNames[selectedProfile, default: ""] },
+                    set: { name in
+                        var names = profileNames
+                        names[selectedProfile] = String(name.prefix(40))
+                        if let encoded = try? JSONEncoder().encode(names) { storedNames = encoded }
+                    }
+                ))
                 HStack {
                     Button(l("Klavyeden oku")) { loadProfile() }.disabled(busy)
                     Button(l("Profili değiştir")) { switchProfile() }
@@ -494,20 +586,20 @@ struct KeySettingsView: View {
                 }
             }
             Section(l("Tuş ataması")) {
-                KeyboardLayout(selection: $source)
+                KeyboardLayout(selected: [source], marked: markedKeys) { source = $0 }
                 Picker(l("Katman"), selection: $fn) {
                     Text(l("Temel")).tag(false)
                     Text("Fn").tag(true)
                 }
-                .onChange(of: fn) { resetAssignment() }
+                .onChange(of: fn) { readSelection() }
                 Picker(l("Fiziksel tuş"), selection: $source) {
                     ForEach(Self.keys.filter { Self.slots[$0.0] != nil }, id: \.0) { key in
                         Text(l(key.1)).tag(key.0)
                     }
                 }
-                .onChange(of: source) { resetAssignment() }
+                .onChange(of: source) { readSelection() }
                 if let binding {
-                    LabeledContent(l("Mevcut atama"), value: assignmentName(binding))
+                    LabeledContent(l("Mevcut atama"), value: binding.displayName(fn: fn, language: l))
                     assignmentEditor
                 }
             }
@@ -542,14 +634,40 @@ struct KeySettingsView: View {
             }
             .background(.bar)
         }
-        .onAppear { if profile == nil && !busy { loadProfile() } }
+        .onChange(of: connected, initial: true) { _, available in
+            if available {
+                loadProfile()
+            } else {
+                profile = nil
+                resetAssignment()
+            }
+        }
+        .onChange(of: settingsRevision) {
+            changed = [:]
+            if connected { loadProfile() }
+        }
+    }
+
+    private var profileNames: [UInt8: String] {
+        (try? JSONDecoder().decode([UInt8: String].self, from: storedNames)) ?? [:]
+    }
+
+    private var markedKeys: Set<UInt8> {
+        guard let profile else { return [] }
+        return Set(changed[Layer(profile: profile, fn: fn), default: [:]].keys)
+    }
+
+    private func readSelection() {
+        resetAssignment()
+        loadBinding()
     }
 
     private func loadProfile() {
+        guard connected, !busy else { return }
         run("Etkin profil okundu.", operation: { try Keyboard.profile() }) { current in
             profile = current
             selectedProfile = current
-            resetAssignment()
+            readSelection()
         }
     }
 
@@ -558,7 +676,7 @@ struct KeySettingsView: View {
         run("Profil değiştirildi ve doğrulandı.", operation: { try Keyboard.selectProfile(target) }) { current in
             profile = current
             selectedProfile = current
-            resetAssignment()
+            readSelection()
         }
     }
 
@@ -629,23 +747,6 @@ struct KeySettingsView: View {
         }
     }
 
-    private func assignmentName(_ value: KeyAssignment) -> String {
-        switch value {
-        case .key(let usage):
-            if let key = Self.keys.first(where: { $0.0 == usage }) { return l(key.1) }
-            return String(format: "HID 0x%02X", usage)
-        case .macro(let slot, _):
-            return l.format("Makro %@", String(Int(slot) + 1))
-        case .media(let usage):
-            if let option = KeyAssignment.mediaOptions.first(where: { $0.0 == usage }) { return l(option.1) }
-            return String(format: "HID 0x%04X", usage)
-        case .disabled:
-            return l(fn ? "Temel katman" : "Devre dışı")
-        case .custom:
-            return l("Özel atama")
-        }
-    }
-
     private func resetAssignment() {
         binding = nil
         undoBinding = nil
@@ -654,7 +755,7 @@ struct KeySettingsView: View {
     }
 
     private func loadBinding() {
-        guard !busy, let slot = Self.slots[source], let profile else { return }
+        guard connected, !busy, let slot = Self.slots[source], let profile, selectedProfile == profile else { return }
         let layer = fn
         run("Atama klavyeden okundu.", operation: { try Keyboard.keyBinding(slot: slot, expectedProfile: profile, fn: layer) }) { bytes in
             let current = KeyAssignment(bytes: bytes)
@@ -677,6 +778,8 @@ struct KeySettingsView: View {
     private func writeAssignment(_ target: KeyAssignment, replacing previous: KeyAssignment, isUndo: Bool) {
         guard !busy, let slot = Self.slots[source], let profile, selectedProfile == profile else { return }
         let layer = fn
+        let location = Layer(profile: profile, fn: layer)
+        let key = source
         let success = isUndo ? "Tuş ataması geri alındı." : "Tuş atandı ve klavyeden doğrulandı."
         run(success, operation: {
             try Keyboard.assignKey(
@@ -688,6 +791,8 @@ struct KeySettingsView: View {
             binding = current
             draftBinding = current
             undoBinding = isUndo ? nil : previous
+            let original = changed[location]?[key] ?? previous
+            changed[location, default: [:]][key] = current == original ? nil : original
         }
     }
 
@@ -697,11 +802,14 @@ struct KeySettingsView: View {
         busy = true
         status = ""
         Task {
-            defer { busy = false }
             do {
-                update(try await Task.detached(operation: operation).value)
+                let value = try await Task.detached(operation: operation).value
+                busy = false
+                guard connected else { return }
                 status = success
+                update(value)
             } catch {
+                busy = false
                 binding = nil
                 undoBinding = nil
                 status = l.message(error)

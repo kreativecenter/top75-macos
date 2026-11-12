@@ -1,10 +1,10 @@
 import Foundation
 
 struct Macro: Sendable {
-    struct Stroke: Sendable {
-        let key: UInt8
-        let down: Bool
-        let delay: UInt16
+    struct Stroke: Equatable, Sendable {
+        var key: UInt8
+        var down: Bool
+        var delay: UInt16
     }
 
     let repeats: UInt16

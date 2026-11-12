@@ -40,6 +40,24 @@ enum KeyAssignment: Equatable, Sendable {
         }
     }
 
+    @MainActor
+    func displayName(fn: Bool, language l: AppLanguage) -> String {
+        switch self {
+        case .key(let usage):
+            if let key = KeySettingsView.keys.first(where: { $0.0 == usage }) { return l(key.1) }
+            return String(format: "HID 0x%02X", usage)
+        case .macro(let slot, _):
+            return l.format("Makro %@", String(Int(slot) + 1))
+        case .media(let usage):
+            if let option = KeyAssignment.mediaOptions.first(where: { $0.0 == usage }) { return l(option.1) }
+            return String(format: "HID 0x%04X", usage)
+        case .disabled:
+            return l(fn ? "Temel katman" : "Devre dışı")
+        case .custom:
+            return l("Özel atama")
+        }
+    }
+
     var bytes: [UInt8] {
         switch self {
         case .key(let key): [0, 0, key, 0]

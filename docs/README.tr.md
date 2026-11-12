@@ -10,7 +10,7 @@ Darmoshark TOP75’i doğrudan USB üzerinden yapılandıran açık kaynak macOS
 2. TOP75’i veri taşıyan bir USB kablosuyla bağla. Mod anahtarını **OFF** konumuna getir ve klavye ekranında **USB** yazdığını kontrol et.
 3. Kenar çubuğunda **USB bağlı** göründüğünde bir panel aç. Mevcut ayarı oku, değiştir ve klavyeye uygula.
 
-**TOP75 → Ayarlar** (⌘,) menüsünden İngilizce, Türkçe veya sistem dilini seçebilirsin. **⌘F** ile kılavuzda ara.
+**TOP75 → Ayarlar** (⌘,) menüsünden İngilizce, Türkçe veya sistem dilini seçebilirsin. **⌘F** ile kılavuzda ara ve ilgili paneli aç. USB kurulum adımları için kenar çubuğundaki **Bağlantı yardımı** düğmesini kullan.
 
 ## Ekran görüntüleri
 
@@ -22,16 +22,25 @@ Darmoshark TOP75’i doğrudan USB üzerinden yapılandıran açık kaynak macOS
 
 ![TOP75 tuş ve profil panelinde Fn + F12 için multimedya ataması okunmuş](assets/keys-profiles.png)
 
+**Makro zaman çizelgesi ve GIF önizlemesi**
+
+<table>
+  <tr>
+    <td width="49%"><img src="assets/macros.png" alt="Makro oynatılırken Command ve K tuşları vurgulanıyor"></td>
+    <td width="51%"><img src="assets/display.png" alt="128 × 128 GIF önizlemesi, sığdırma ve ortadan kırpma seçenekleri"></td>
+  </tr>
+</table>
+
 ## Paneller
 
 | Panel | İşlev |
 | --- | --- |
-| **Aydınlatma** | Canlı efekt önizlemesi, renk, yön, parlaklık ve hız. Tuş başına RGB ve beş yerel ön ayar. |
-| **Tuşlar ve profiller** | Klavye çiziminden tuş seç, temel veya Fn katmanına tuş, multimedya işlevi veya makro ata. Üç cihaz profili arasında geçiş yap. |
-| **Makrolar** | Tuş olayları, bekleme süreleri ve tekrar sayısını düzenle. |
-| **Ekran** | PNG ve JPEG için önizleme ve beş sabit görsel yuvası. En fazla 25 kareli GIF aktarımı. |
-| **Cihaz ayarları** | Tuş tepki süresi, otomatik işletim sistemi algılama, kablosuz uyku süreleri ve JSON ayar kaydı. |
+| **Aydınlatma** | Canlı efekt önizlemesi, beş yerel ön ayar ve ayrı bir tuş rengi düzenleyicisi. Birden fazla tuşu seçip birlikte boya ve tek işlemde uygula. |
+| **Tuşlar ve profiller** | Seçilen tuşun mevcut ataması otomatik okunur. Temel ve Fn katmanını düzenle, değişen tuşları çizimde gör ve üç cihaz profiline bu Mac’te ad ver. |
+| **Makrolar** | Basma ve bırakma olaylarını düzenle, sırala ve sil. Makroyu klavye çiziminde bir tur oynat ve basılı tuşları gör. |
+| **Ekran** | PNG, JPEG veya GIF sürükleyip bırak. 128 × 128 önizlemede oynat, sığdır veya ortadan kırp. Aktarım ilerlemesi panel değiştirince de görünür. |
+| **Cihaz ayarları** | Tuş tepkisini, otomatik işletim sistemi algılamayı ve kablosuz uyku sürelerini yönet. JSON kaydını klavyeyle karşılaştır ve istediğin farkları geri yükle. |
 
-Apple Silicon ve Intel için derlenen uygulama macOS 14 ve üstünü hedefler. DMG ve ZIP, aynı imzalı ve Apple noter onaylı uygulamayı içerir. Cihaz ayarları USB üzerinden yazılır ve uygulama TOP75 kimliği **957** olan modeli doğrular. Sabit görselin fiziksel klavyede görüntülendiği doğrulandı. GIF oynatma ayrıca test edilmelidir. JSON geri yükleme, kablosuz yapılandırma, firmware güncelleme, müzik ve ekran eşleme ile fare olaylı makrolar henüz yok.
+Apple Silicon ve Intel için derlenen uygulama macOS 14 ve üstünü hedefler. DMG ve ZIP, aynı imzalı ve Apple noter onaylı uygulamayı içerir. Cihaz ayarları USB üzerinden yazılır ve uygulama TOP75 kimliği **957** olan modeli doğrular. Sabit görselin fiziksel klavyede görüntülendiği doğrulandı. Fiziksel klavyede GIF oynatma ve seçmeli geri yükleme henüz doğrulanmadı. Geri yükleme için yedek ile klavyenin firmware sürümü eşleşmeli. JSON kaydı makro içeriğini ve ekran görsellerini kapsamaz. Kablosuz yapılandırma, firmware güncelleme, müzik ve ekran eşleme ile fare olaylı makrolar henüz yok.
 
 Xcode ve Swift 6 ile depoda `./scripts/build.sh` çalıştırarak dağıtım paketini oluşturabilirsin. Kaynak kodu [MIT lisansı](../LICENSE) ile yayımlanır.

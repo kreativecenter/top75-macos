@@ -97,12 +97,49 @@ enum WorkspacePage: String, CaseIterable, Identifiable {
     }
 }
 
+@MainActor
+@Observable
+final class WorkspaceTransfer {
+    static let shared = WorkspaceTransfer()
+
+    struct Job {
+        let id: UUID
+        let page: WorkspacePage
+        let title: String
+        var progress: Double?
+    }
+
+    private(set) var job: Job?
+    private(set) var settingsRevision = 0
+    var isBusy: Bool { job != nil }
+
+    func start(_ page: WorkspacePage, title: String, determinate: Bool = true) -> UUID? {
+        guard job == nil else { return nil }
+        let id = UUID()
+        job = Job(id: id, page: page, title: title, progress: determinate ? 0 : nil)
+        return id
+    }
+
+    func update(_ id: UUID, progress: Double) {
+        guard job?.id == id, let current = job?.progress else { return }
+        job?.progress = max(current, min(1, progress))
+    }
+
+    func finish(_ id: UUID, settingsChanged: Bool = false) {
+        guard job?.id == id else { return }
+        job = nil
+        if settingsChanged { settingsRevision += 1 }
+    }
+}
+
 struct WorkspaceView: View {
     @Environment(\.appLanguage) private var l
     @Environment(\.openSettings) private var openSettings
     @SceneStorage("workspace.page") private var storedPage = WorkspacePage.lighting
     @State private var mountedPages: Set<WorkspacePage> = []
     @State private var guideFocus = 0
+    @State private var connectionHelp = 0
+    private let transfer = WorkspaceTransfer.shared
     @State private var connected = false
 
     private var selection: Binding<WorkspacePage?> {
@@ -141,6 +178,14 @@ struct WorkspaceView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
+                        if !connected {
+                            Button(l("Bağlantı yardımı")) {
+                                storedPage = .guide
+                                connectionHelp += 1
+                            }
+                            .buttonStyle(.link)
+                            .font(.caption)
+                        }
                     }
                     Spacer(minLength: 0)
                 }
@@ -159,6 +204,28 @@ struct WorkspaceView: View {
                 .padding(.horizontal, 28)
                 .padding(.vertical, 20)
                 Divider()
+                if let job = transfer.job {
+                    HStack(spacing: 12) {
+                        if let progress = job.progress {
+                            ProgressView(value: progress) {
+                                Text(l(job.title))
+                            } currentValueLabel: {
+                                Text(progress.formatted(.percent.precision(.fractionLength(0)))).monospacedDigit()
+                            }
+                        } else {
+                            ProgressView().controlSize(.small)
+                            Text(l(job.title))
+                        }
+                        Spacer(minLength: 0)
+                        if storedPage != job.page {
+                            Button(l("Aktarımı aç")) { storedPage = job.page }
+                        }
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 8)
+                    .background(.bar)
+                    Divider()
+                }
                 ZStack {
                     ForEach(WorkspacePage.allCases.filter { mountedPages.contains($0) || storedPage == $0 }) { page in
                         content(page)
@@ -204,12 +271,19 @@ struct WorkspaceView: View {
     @ViewBuilder
     private func content(_ page: WorkspacePage) -> some View {
         switch page {
-        case .lighting: LightingView(connected: connected, isActive: storedPage == .lighting)
-        case .keys: KeySettingsView()
-        case .macros: MacroView()
-        case .display: ScreenView()
-        case .device: DeviceOptionsView()
-        case .guide: GuideView(focusRequest: guideFocus)
+        case .lighting:
+            LightingView(connected: connected, isActive: storedPage == .lighting, settingsRevision: transfer.settingsRevision)
+                .disabled(transfer.isBusy)
+        case .keys:
+            KeySettingsView(connected: connected, settingsRevision: transfer.settingsRevision)
+                .disabled(transfer.isBusy)
+        case .macros:
+            MacroView(isActive: storedPage == .macros, connected: connected)
+                .disabled(transfer.isBusy)
+        case .display: ScreenView(connected: connected, isActive: storedPage == .display, transfer: transfer)
+        case .device: DeviceOptionsView(connected: connected, transfer: transfer)
+        case .guide:
+            GuideView(focusRequest: guideFocus, connectionRequest: connectionHelp) { storedPage = $0 }
         }
     }
 }

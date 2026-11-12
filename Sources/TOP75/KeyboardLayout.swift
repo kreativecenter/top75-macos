@@ -32,8 +32,10 @@ struct KeyboardLayout: View {
     static var selectableCodes: [UInt8] { rows.flatMap { $0.compactMap(\.code) } }
 
     @Environment(\.appLanguage) private var l
-    @Binding var selection: UInt8
+    var selected: Set<UInt8> = []
+    var marked: Set<UInt8> = []
     var colors: [UInt32] = []
+    var select: ((UInt8) -> Void)?
 
     var body: some View {
         GeometryReader { geometry in
@@ -62,13 +64,13 @@ struct KeyboardLayout: View {
     @ViewBuilder
     private func key(_ cap: Cap) -> some View {
         if let code = cap.code {
-            let selected = code == selection
+            let selected = selected.contains(code)
             let name = KeySettingsView.keys.first { $0.0 == code }?.1 ?? cap.legend
             let slot = KeySettingsView.slots[code].map(Int.init)
             let rgb = slot.flatMap { colors.indices.contains($0) ? colors[$0] : nil } ?? 0
             let tint = rgb == 0 ? Color(nsColor: .controlBackgroundColor) : Color(rgb24: rgb).opacity(0.36)
             let painted = !colors.isEmpty
-            Button { selection = code } label: {
+            let face =
                 Text(cap.legend)
                     .font(.system(size: 10, weight: .medium, design: .monospaced))
                     .foregroundStyle(selected && !painted ? Color.white : Color.primary)
@@ -81,12 +83,22 @@ struct KeyboardLayout: View {
                             RoundedRectangle(cornerRadius: 4).strokeBorder(.quaternary)
                         }
                     }
+                    .overlay(alignment: .topTrailing) {
+                        if marked.contains(code) {
+                            Circle().fill(.orange).frame(width: 5, height: 5).padding(3)
+                        }
+                    }
                     .contentShape(Rectangle())
+            if let select {
+                Button { select(code) } label: { face }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(l(name))
+                    .accessibilityAddTraits(selected ? .isSelected : [])
+                    .accessibilityValue(marked.contains(code) ? l("Değiştirildi") : "")
+                    .help(l(name))
+            } else {
+                face.accessibilityHidden(!selected).accessibilityLabel(l(name))
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(l(name))
-            .accessibilityAddTraits(selected ? .isSelected : [])
-            .help(l(name))
         } else {
             Text(cap.legend)
                 .font(.system(size: 10, weight: .medium, design: .monospaced))

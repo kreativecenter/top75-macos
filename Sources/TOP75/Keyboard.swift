@@ -73,17 +73,19 @@ enum Keyboard {
     }
 
     static func apply(_ lighting: Lighting, replacing previous: Lighting? = nil) throws -> Lighting {
-        try withDevice { device in
-            if let previous, try !readLighting(device).matches(previous) { throw KeyboardError.mismatch }
-            try send(device, lighting.report)
-            for _ in 0..<3 {
-                Thread.sleep(forTimeInterval: 0.25)
-                let current = try readLighting(device)
+        try withDevice { try apply($0, lighting: lighting, replacing: previous) }
+    }
 
-                if current.matches(lighting) { return current }
-            }
-            throw KeyboardError.mismatch
+    static func apply(_ device: IOHIDDevice, lighting: Lighting, replacing previous: Lighting?) throws -> Lighting {
+        if let previous, try !readLighting(device).matches(previous) { throw KeyboardError.mismatch }
+        try send(device, lighting.report)
+        for _ in 0..<3 {
+            Thread.sleep(forTimeInterval: 0.25)
+            let current = try readLighting(device)
+
+            if current.matches(lighting) { return current }
         }
+        throw KeyboardError.mismatch
     }
 
     static func profile() throws -> UInt8 {
@@ -91,14 +93,16 @@ enum Keyboard {
     }
 
     static func selectProfile(_ profile: UInt8) throws -> UInt8 {
+        try withDevice { try selectProfile($0, profile: profile) }
+    }
+
+    static func selectProfile(_ device: IOHIDDevice, profile: UInt8) throws -> UInt8 {
         guard profile < 3 else { throw KeyboardError.invalidReply }
-        return try withDevice { device in
-            try send(device, report([0x05, profile], checksumIndex: 7))
-            Thread.sleep(forTimeInterval: 0.25)
-            let current = try readProfile(device)
-            guard current == profile else { throw KeyboardError.mismatch }
-            return current
-        }
+        try send(device, report([0x05, profile], checksumIndex: 7))
+        Thread.sleep(forTimeInterval: 0.25)
+        let current = try readProfile(device)
+        guard current == profile else { throw KeyboardError.mismatch }
+        return current
     }
 
     static func readProfile(_ device: IOHIDDevice) throws -> UInt8 {
@@ -116,18 +120,20 @@ enum Keyboard {
     }
 
     static func assignKey(slot: UInt8, binding: [UInt8], expectedProfile: UInt8, previousBinding: [UInt8], fn: Bool = false) throws -> [UInt8] {
+        try withDevice { try assignKey($0, slot: slot, binding: binding, expectedProfile: expectedProfile, previousBinding: previousBinding, fn: fn) }
+    }
+
+    static func assignKey(_ device: IOHIDDevice, slot: UInt8, binding: [UInt8], expectedProfile: UInt8, previousBinding: [UInt8], fn: Bool) throws -> [UInt8] {
         guard slot < 128, binding.count == 4 else { throw KeyboardError.invalidReply }
-        return try withDevice { device in
-            let profile = try readProfile(device)
-            guard profile == expectedProfile,
-                  try readKey(device, profile: profile, slot: slot, fn: fn) == previousBinding
-            else { throw KeyboardError.mismatch }
-            try send(device, report([fn ? 0x15 : 0x13, profile, slot, 0, 0, 0, 0, 0] + binding, checksumIndex: 7))
-            Thread.sleep(forTimeInterval: 0.25)
-            let current = try readKey(device, profile: profile, slot: slot, fn: fn)
-            guard current == binding else { throw KeyboardError.mismatch }
-            return current
-        }
+        let profile = try readProfile(device)
+        guard profile == expectedProfile,
+              try readKey(device, profile: profile, slot: slot, fn: fn) == previousBinding
+        else { throw KeyboardError.mismatch }
+        try send(device, report([fn ? 0x15 : 0x13, profile, slot, 0, 0, 0, 0, 0] + binding, checksumIndex: 7))
+        Thread.sleep(forTimeInterval: 0.25)
+        let current = try readKey(device, profile: profile, slot: slot, fn: fn)
+        guard current == binding else { throw KeyboardError.mismatch }
+        return current
     }
 
     private static func readKey(_ device: IOHIDDevice, profile: UInt8, slot: UInt8, fn: Bool) throws -> [UInt8] {
