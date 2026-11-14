@@ -90,42 +90,50 @@ extension Keyboard {
 
     static func macro(slot: UInt8, connection: KeyboardConnection = .usb) throws -> [UInt8] {
         guard slot < 50 else { throw KeyboardError.invalidReply }
-        return try withDevice(connection: connection) { try readPages($0, opcode: 0x8B, index: slot, count: 4) }
+        return try withDevice(connection: connection) { try readMacro($0, slot: slot) }
     }
 
     static func setMacro(
         slot: UInt8, bytes: [UInt8], previous: [UInt8], connection: KeyboardConnection = .usb
     ) throws -> [UInt8] {
+        try withDevice(connection: connection) { try setMacro($0, slot: slot, bytes: bytes, previous: previous) }
+    }
+
+    static func readMacro(_ device: KeyboardAccess, slot: UInt8) throws -> [UInt8] {
+        let bytes = try readPages(device, opcode: 0x8B, index: slot, count: 4)
+        guard !bytes.allSatisfy({ $0 == 0xFF }) else { throw KeyboardError.invalidReply }
+        return bytes
+    }
+
+    static func setMacro(_ device: KeyboardAccess, slot: UInt8, bytes: [UInt8], previous: [UInt8]) throws -> [UInt8] {
         guard slot < 50, bytes.count == 256, bytes.suffix(34).allSatisfy({ $0 == 0 }) else { throw KeyboardError.invalidReply }
         let requiredBytes = try Macro.writeLength(bytes)
-        return try withDevice(connection: connection) { device in
-            guard try readPages(device, opcode: 0x8B, index: slot, count: 4) == previous else {
-                throw KeyboardError.mismatch
-            }
-            // Include the terminator even when the final event ends on a page boundary.
-            let pageCount = (requiredBytes + 55) / 56
-            let expected = bytes.prefix(requiredBytes)
-            for _ in 0..<2 {
-                for page in 0..<pageCount {
-                    let start = 56 * page
-                    let payload = Array(bytes[start..<start + 56])
-                    let header: [UInt8] = [0x16, slot, UInt8(page), 56, page == pageCount - 1 ? 1 : 0, 0, 0, 0]
-                    try device.send(report(header + payload, checksumIndex: 7))
-                    // This TOP75 ignored multi-page macros at a 40 ms interval.
-                    Thread.sleep(forTimeInterval: 0.15)
-                }
-                Thread.sleep(forTimeInterval: 0.70)
-                var current = try readPages(device, opcode: 0x8B, index: slot, count: 4)
-                for _ in 0..<2 where current.prefix(requiredBytes) != expected {
-                    Thread.sleep(forTimeInterval: 0.20)
-                    current = try readPages(device, opcode: 0x8B, index: slot, count: 4)
-                }
-                if current.prefix(requiredBytes) == expected { return current }
-                // Retry only if the slot still contains the original data.
-                guard current == previous else { throw KeyboardError.mismatch }
-            }
+        guard try readMacro(device, slot: slot) == previous else {
             throw KeyboardError.mismatch
         }
+        // Include the terminator even when the final event ends on a page boundary.
+        let pageCount = (requiredBytes + 55) / 56
+        let expected = bytes.prefix(requiredBytes)
+        for _ in 0..<2 {
+            for page in 0..<pageCount {
+                let start = 56 * page
+                let payload = Array(bytes[start..<start + 56])
+                let header: [UInt8] = [0x16, slot, UInt8(page), 56, page == pageCount - 1 ? 1 : 0, 0, 0, 0]
+                try device.send(report(header + payload, checksumIndex: 7))
+                // This TOP75 ignored multi-page macros at a 40 ms interval.
+                Thread.sleep(forTimeInterval: 0.15)
+            }
+            Thread.sleep(forTimeInterval: 0.70)
+            var current = try readMacro(device, slot: slot)
+            for _ in 0..<2 where current.prefix(requiredBytes) != expected {
+                Thread.sleep(forTimeInterval: 0.20)
+                current = try readMacro(device, slot: slot)
+            }
+            if current.prefix(requiredBytes) == expected { return current }
+            // Retry only if the slot still contains the original data.
+            guard current == previous else { throw KeyboardError.mismatch }
+        }
+        throw KeyboardError.mismatch
     }
 
     private static func readPages(_ device: KeyboardAccess, opcode: UInt8, index: UInt8, count: UInt8) throws -> [UInt8] {
@@ -152,26 +160,28 @@ struct SettingsSnapshot: Codable, Sendable {
     let options: DeviceOptions
     let keyColors: [UInt32]
     let profiles: [Profile]
+    var macros: [UInt8: Data]? = nil
 
     enum CodingKeys: String, CodingKey {
-        case formatVersion, device, recordedAt, activeProfile, firmware, lighting, options, keyColors, profiles
+        case formatVersion, device, recordedAt, activeProfile, firmware, lighting, options, keyColors, profiles, macros
     }
 }
 
 extension Keyboard {
     static func settingsSnapshot(connection: KeyboardConnection = .usb) throws -> Data {
-        let snapshot = try snapshot(connection: connection)
+        let snapshot = try snapshot(connection: connection, macroSlots: Set(0..<50))
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         return try encoder.encode(snapshot)
     }
 
-    static func snapshot(connection: KeyboardConnection = .usb) throws -> SettingsSnapshot {
-        try withDevice(connection: connection) { try readSnapshot($0) }
+    static func snapshot(connection: KeyboardConnection = .usb, macroSlots: Set<UInt8> = []) throws -> SettingsSnapshot {
+        try withDevice(connection: connection) { try readSnapshot($0, macroSlots: macroSlots) }
     }
 
-    static func readSnapshot(_ device: KeyboardAccess) throws -> SettingsSnapshot {
+    static func readSnapshot(_ device: KeyboardAccess, macroSlots: Set<UInt8> = []) throws -> SettingsSnapshot {
+        guard macroSlots.allSatisfy({ $0 < 50 }) else { throw SnapshotError.invalidFile }
         let active = try readProfile(device)
         let firmware = try readFirmware(device)
         let base = try (UInt8(0)...2).map { profile in
@@ -183,10 +193,15 @@ extension Keyboard {
         guard try readProfile(device) == active else { throw KeyboardError.mismatch }
 
         let functions = try readFunctionLayers(device, active: active, firmware: firmware)
+        var macros: [UInt8: Data] = [:]
+        for slot in macroSlots.sorted() {
+            macros[slot] = Data(try readMacro(device, slot: slot))
+        }
         return SettingsSnapshot(
-            formatVersion: 2, device: SettingsSnapshot.model, recordedAt: Date(), activeProfile: active,
+            formatVersion: macroSlots.isEmpty ? 2 : 3, device: SettingsSnapshot.model, recordedAt: Date(), activeProfile: active,
             firmware: firmware, lighting: lighting, options: options, keyColors: colors,
-            profiles: zip(base, functions).map { .init(base: $0, function: $1) }
+            profiles: zip(base, functions).map { .init(base: $0, function: $1) },
+            macros: macroSlots.isEmpty ? nil : macros
         )
     }
 

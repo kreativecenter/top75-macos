@@ -19,6 +19,10 @@ struct RestoreReview: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
+            if !plan.unsupportedMacros.isEmpty {
+                Text(l.format("Bu makro yuvaları bu sürümde geri yüklenemez: %@.", plan.unsupportedMacros.map { String(Int($0) + 1) }.joined(separator: ", ")))
+                    .font(.callout).foregroundStyle(.secondary)
+            }
             if !plan.changes.isEmpty {
                 HStack {
                     Button(l("Tümünü seç")) { selected = Set(plan.changes) }
@@ -78,6 +82,7 @@ struct RestoreReview: View {
         switch group {
         case .settings: l("Cihaz ayarları")
         case .colors: l("Tuş başına renk")
+        case .macros: l("Makrolar")
         case .profile(let profile): l.format("Profil %@", String(Int(profile) + 1))
         case .sharedFn: l("Fn · Profil 2 ve 3")
         }
@@ -96,6 +101,7 @@ struct RestoreReview: View {
         case .automaticOS: l("İşletim sistemini otomatik algıla")
         case .timer(let index): l(SnapshotRestorePlan.timers[index])
         case .activeProfile: l("Etkin profil")
+        case .macro(let slot): l.format("Makro %@", String(Int(slot) + 1))
         case .color(let slot), .sharedFn(let slot): physicalKey(slot)
         case .key(_, let fn, let slot): "\(physicalKey(slot)) · \(fn ? "Fn" : l("Temel"))"
         }
@@ -114,6 +120,12 @@ struct RestoreReview: View {
         case .timer(let index): return l.format("%@ sn", String(snapshot.options.timers[index]))
         case .activeProfile: return groupTitle(.profile(snapshot.activeProfile))
         case .color(let slot): return hex(snapshot.keyColors[Int(slot)])
+        case .macro(let slot):
+            guard let data = snapshot.macros?[slot], let macro = try? Macro(bytes: Array(data)) else {
+                return l("Desteklenmeyen makro")
+            }
+            if macro.strokes.isEmpty { return l("Boş") }
+            return l.format("%@ olay · %@ tekrar", String(macro.strokes.count), String(macro.repeats))
         case .key, .sharedFn:
             guard let key = item.keyTarget else { return "" }
             let bytes = snapshot.binding(profile: key.profile, fn: key.fn, slot: key.slot)

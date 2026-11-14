@@ -39,7 +39,7 @@ Firmware 274 also verified writes and rollback for active profile selection, a s
 
 ## 2.4 GHz receiver and battery
 
-The TOP75 receiver exposes USB VID `0x3151`, PID `0x4011`, usage page `0xFFFF` and usage `2`. The app checks the receiver's `0xF7` status and confirms ID 957 with a relayed `0x8F` query before reporting the connection. Later polls read the receiver's status cache only. A zero in byte 3 means the keyboard is online, and byte 1 supplies the battery level. An offline reply or an empty cache cannot trigger an alert.
+The TOP75 receiver exposes USB VID `0x3151`, PID `0x4011`, usage page `0xFFFF` and usage `2`. The app checks the receiver's `0xF7` status and confirms ID 957 with a relayed `0x8F` query before reporting the connection. Routine battery polls read the receiver’s status cache only. A zero in byte 3 means the keyboard is online, and byte 1 supplies the battery level. An offline reply or an empty cache cannot trigger an alert.
 
 The connected sample reported `00 03 00 00 01 01 01 00` at low charge. After the keyboard went offline, byte 3 changed to `01` while the old level remained cached. The receiver's status does not establish whether the battery is charging. On TOP75 BT3.0, macOS exposed no battery percentage and the Bluetooth HID configuration replies did not identify a usable battery command. The keyboard's built-in display remains the reference for charging.
 
@@ -48,3 +48,7 @@ See the [sharkfin receiver exchange and status fields](https://github.com/dnimin
 ## Bluetooth 5.0 battery
 
 The tested TOP75 BT5.0 unit used VID `0x3151`, PID `0x4013` and vendor report ID 6 on usage page `0xFF55`. It answered the same `06 55` identity, firmware and lighting queries as the BT3.0 connection. macOS reported 23% for this connection via `pmset -g accps`. TOP75 reads that system value about every 30 seconds while the matching Bluetooth HID device is present. It does not send periodic battery reports to the keyboard.
+
+## 2.4 GHz configuration
+
+Settings use the same command and payload formats as USB, wrapped by the receiver relay. Before sending, check `0xF7` for an online keyboard and a ready receiver, then select its keyboard target with `F6 0A`. Poll `F7` before fetching the requested response with `FC`. On the tested receiver, the ready flag sometimes returned to 1 without the reply flag being set. Serializing battery polls and configuration transactions keeps status reads out of in-flight requests. Screen transfers remain wired.

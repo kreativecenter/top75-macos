@@ -225,14 +225,16 @@ struct TOP75App: App {
     @NSApplicationDelegateAdaptor(DevelopmentAppDelegate.self) private var appDelegate
     #endif
     @AppStorage("interfaceLanguage") private var preference = LanguagePreference.system
+    @AppStorage("showMenuBar") private var showMenuBar = true
 
     init() {
         LightingScheduler.shared.start()
         BatteryMonitor.shared.start()
+        ProfileAutomation.shared.start()
     }
 
     var body: some Scene {
-        WindowGroup("TOP75") {
+        WindowGroup("TOP75", id: "main") {
             WorkspaceView()
                 .environment(\.appLanguage, preference.language)
                 .environment(\.locale, Locale(identifier: preference.language.code))
@@ -247,6 +249,11 @@ struct TOP75App: App {
                     NSWorkspace.shared.open(URL(string: "https://x.com/bedirhansamsa")!)
                 }
             }
+        }
+        MenuBarExtra(isInserted: $showMenuBar) {
+            QuickControls(language: preference.language)
+        } label: {
+            Label("TOP75", systemImage: "keyboard")
         }
         Settings {
             PreferencesView(preference: $preference)
@@ -720,6 +727,7 @@ struct KeySettingsView: View {
     private func loadProfile() {
         guard let transport = connection, !busy else { return }
         run("Etkin profil okundu.", using: transport, operation: { try Keyboard.profileInfo(connection: transport) }) { current in
+            ProfileAutomation.shared.noteObservedProfile(current.profile)
             profile = current.profile
             selectedProfile = current.profile
             sharedFn = Keyboard.sharesFnLayer(current.firmware)
@@ -733,6 +741,7 @@ struct KeySettingsView: View {
         run("Profil değiştirildi ve doğrulandı.", using: transport, operation: {
             try Keyboard.selectProfile(target, connection: transport)
         }) { current in
+            ProfileAutomation.shared.noteManualSelection(current)
             profile = current
             selectedProfile = current
             readSelection()

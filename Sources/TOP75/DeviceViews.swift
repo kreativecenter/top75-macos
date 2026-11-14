@@ -189,6 +189,7 @@ struct DeviceOptionsView: View {
     var body: some View {
         Form {
             BatteryStatusView()
+            AppProfilesView()
             Section(l("Tuş tepkisi")) {
                 Stepper(l.format("Debounce · %@ ms", String(draft.debounce)), value: $draft.debounce, in: 0...10)
                 Toggle(l("İşletim sistemini otomatik algıla"), isOn: $draft.automaticOS)
@@ -219,7 +220,7 @@ struct DeviceOptionsView: View {
                     Button(l("JSON kaydını aç")) { importing = true }
                 }
                 .disabled(action.busy || !connected)
-                Text(l("Üç profilin tuş atamalarını, aydınlatmayı ve cihaz ayarlarını dosyaya kaydeder."))
+                Text(l("Üç profilin tuş atamalarını, makroları, aydınlatmayı ve cihaz ayarlarını dosyaya kaydeder."))
                     .foregroundStyle(.secondary)
             }
         }
@@ -259,10 +260,12 @@ struct DeviceOptionsView: View {
     }
 
     private func export() {
-        guard let transport = connection, !action.busy else { return }
+        guard let transport = connection, !action.busy,
+              let id = transfer.start(.device, title: "Ayarlar okunuyor", determinate: false) else { return }
         action.busy = true
         action.status = ""
         action.perform { try Keyboard.settingsSnapshot(connection: transport) } completion: { result in
+            transfer.finish(id)
             action.busy = false
             guard connection == transport else { load(); return }
             switch result {
@@ -280,7 +283,7 @@ struct DeviceOptionsView: View {
         action.status = ""
         action.perform {
             let backup = try SettingsSnapshot.load(from: url)
-            return try SnapshotRestorePlan(current: Keyboard.snapshot(connection: transport), backup: backup)
+            return try SnapshotRestorePlan(current: Keyboard.snapshot(connection: transport, macroSlots: Set((backup.macros ?? [:]).keys)), backup: backup)
         } completion: { result in
             transfer.finish(id)
             guard connection == transport else { load(); return }
@@ -307,6 +310,7 @@ struct DeviceOptionsView: View {
             transfer.finish(id, settingsChanged: true)
             switch result {
             case .success:
+                if selection.contains(.activeProfile) { ProfileAutomation.shared.refreshActiveProfile() }
                 if selection.contains(.lighting) { LightingScheduler.shared.manualLightingChanged() }
                 action.status = l.format("%@ değişiklik yazıldı ve klavyeden doğrulandı.", String(selection.count))
             case .failure(let error as SnapshotRestoreFailure):

@@ -21,8 +21,9 @@ extension SettingsSnapshot {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         guard let snapshot = try? decoder.decode(Self.self, from: data),
-              [1, 2].contains(snapshot.formatVersion), snapshot.device == model,
+              [1, 2, 3].contains(snapshot.formatVersion), snapshot.device == model,
               snapshot.hasExpectedShape, snapshot.options.isValid,
+              (snapshot.formatVersion == 3) == (snapshot.macros != nil),
               snapshot.lighting.rgb <= 0xFFFFFF, snapshot.lighting.brightness <= 4,
               snapshot.lighting.speed <= 4, (snapshot.lighting.flags & 15) <= 8,
               (snapshot.lighting.flags >> 4) <= 3,
@@ -36,6 +37,7 @@ extension SettingsSnapshot {
 
     var hasExpectedShape: Bool {
         activeProfile < 3 && keyColors.count == 128 && profiles.count == 3 && options.timers.count == 4
+            && (macros?.allSatisfy { $0.key < 50 && $0.value.count == 256 } ?? true)
             && profiles.allSatisfy { profile in
                 [profile.base, profile.function].allSatisfy { keys in
                     keys.count == 128 && keys.allSatisfy { $0.count == 4 }
@@ -71,22 +73,29 @@ struct SnapshotRestoreFailure: Error {
 
 struct SnapshotRestorePlan: Sendable {
     enum Group: Hashable, Sendable {
-        case settings, colors, profile(UInt8), sharedFn
+        case settings, colors, profile(UInt8), sharedFn, macros
     }
 
     enum Item: Hashable, Sendable {
         case lighting, debounce, automaticOS, timer(Int), activeProfile
-        case color(UInt8)
+        case color(UInt8), macro(UInt8)
         case key(profile: UInt8, fn: Bool, slot: UInt8)
         case sharedFn(slot: UInt8)
 
         var group: Group {
             switch self {
             case .color: .colors
+            case .macro: .macros
             case .key(let profile, _, _): .profile(profile)
             case .sharedFn: .sharedFn
             default: .settings
             }
+        }
+
+        private static func macroContents(_ data: Data?) -> Data? {
+            guard let data else { return nil }
+            guard let count = try? Macro.writeLength(Array(data)) else { return data }
+            return data.prefix(count)
         }
 
         var keyTarget: (profile: UInt8, fn: Bool, slot: UInt8)? {
@@ -109,17 +118,20 @@ struct SnapshotRestorePlan: Sendable {
             case .timer(let index): first.options.timers[index] != second.options.timers[index]
             case .activeProfile: first.activeProfile != second.activeProfile
             case .color(let slot): first.keyColors[Int(slot)] != second.keyColors[Int(slot)]
+            case .macro(let slot):
+                Self.macroContents(first.macros?[slot]) != Self.macroContents(second.macros?[slot])
             case .key, .sharedFn: false
             }
         }
     }
 
     static let timers = ["Bluetooth ışık", "2,4 GHz ışık", "Bluetooth derin uyku", "2,4 GHz derin uyku"]
-    static let groups: [Group] = [.settings, .colors, .profile(0), .profile(1), .profile(2), .sharedFn]
+    static let groups: [Group] = [.settings, .colors, .macros, .profile(0), .profile(1), .profile(2), .sharedFn]
 
     let current: SettingsSnapshot
     let backup: SettingsSnapshot
     let changes: [Item]
+    let unsupportedMacros: [UInt8]
 
     init(current: SettingsSnapshot, backup: SettingsSnapshot) throws {
         guard current.hasExpectedShape, backup.hasExpectedShape else { throw SnapshotError.invalidFile }
@@ -140,6 +152,14 @@ struct SnapshotRestorePlan: Sendable {
         if sharedFn && fnProfiles.contains(where: { $0 > 0 }) {
             items += (0..<128).map(Item.sharedFn)
         }
+        let unsupported = (backup.macros ?? [:]).keys.sorted().filter { slot in
+            guard let bytes = backup.macros?[slot], Item.macro(slot).differs(current, backup) else { return false }
+            guard current.macros?[slot] != nil, let macro = try? Macro(bytes: Array(bytes)),
+                  (try? macro.encoded()) != nil, (try? Macro.writeLength(Array(bytes))) != nil else { return true }
+            return false
+        }
+        unsupportedMacros = unsupported
+        items += (backup.macros ?? [:]).keys.sorted().filter { !unsupported.contains($0) }.map(Item.macro)
         changes = items.filter { $0.differs(current, backup) }
     }
 
@@ -161,7 +181,11 @@ extension Keyboard {
     ) throws {
         guard !selection.isEmpty, selection.isSubset(of: Set(plan.changes)) else { throw SnapshotError.invalidFile }
         try withDevice(connection: connection) { device in
-            let observed = try readSnapshot(device)
+            let macroSlots: Set<UInt8> = Set(selection.compactMap { item in
+                if case .macro(let slot) = item { return slot }
+                return nil
+            })
+            let observed = try readSnapshot(device, macroSlots: macroSlots)
             guard observed.firmware == plan.current.firmware, observed.hasExpectedShape,
                   observed.activeProfile == plan.current.activeProfile,
                   !selection.contains(where: { $0.differs(observed, plan.current) })
@@ -175,6 +199,13 @@ extension Keyboard {
                 progress(Double(verified) / Double(selection.count))
             }
             do {
+                for slot in macroSlots.sorted() {
+                    guard let desired = plan.backup.macros?[slot], let previous = observed.macros?[slot],
+                          let count = try? Macro.writeLength(Array(desired)) else { throw SnapshotError.invalidFile }
+                    let bytes = Array(desired.prefix(count)) + Array(repeating: 0, count: 256 - count)
+                    _ = try setMacro(device, slot: slot, bytes: bytes, previous: Array(previous))
+                    advance(1)
+                }
                 for item in plan.changes where selection.contains(item) {
                     guard let target = item.keyTarget else { continue }
                     let (profile, fn, slot) = target

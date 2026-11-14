@@ -3,11 +3,12 @@ import IOKit.hid
 
 enum KeyboardError: LocalizedError {
     case missing, wrongDevice(UInt32), transport(String, IOReturn), invalidReply, mismatch
-    case missingBluetooth, bluetoothPermission, bluetoothTimeout
+    case missingReceiver, missingBluetooth, bluetoothPermission, bluetoothTimeout
 
     var errorDescription: String? {
         switch self {
         case .missing: "TOP75’in USB ayar arayüzü bulunamadı. Klavyeyi veri kablosuyla bağlayıp mod anahtarını OFF konumuna al."
+        case .missingReceiver: "TOP75 2,4 GHz bağlantısı bulunamadı."
         case .missingBluetooth: "TOP75 Bluetooth bağlantısı bulunamadı."
         case .bluetoothPermission: "Bluetooth ayarları için TOP75’e Giriş İzleme izni ver."
         case .bluetoothTimeout: "TOP75, Bluetooth ayar sorgusuna yanıt vermedi. Klavyeyi uyandırıp tekrar dene."
@@ -64,7 +65,7 @@ struct Lighting: Codable, Sendable, Equatable {
 }
 
 enum KeyboardConnection: String, Codable, Sendable {
-    case usb, bluetooth, bluetoothLowEnergy
+    case usb, bluetooth, bluetoothLowEnergy, receiver
 }
 
 struct KeyboardAccess {
@@ -192,9 +193,12 @@ enum Keyboard {
               try readKey(device, profile: profile, slot: slot, fn: fn) == previousBinding
         else { throw KeyboardError.mismatch }
         try device.writeSetting(report([fn ? 0x15 : 0x13, fn ? 0 : profile, slot, 0, 0, 0, 0, 0] + binding, checksumIndex: 7))
-        let current = try readKey(device, profile: profile, slot: slot, fn: fn)
-        guard current == binding else { throw KeyboardError.mismatch }
-        return current
+        for attempt in 0..<3 {
+            if attempt > 0 { Thread.sleep(forTimeInterval: 0.2) }
+            let current = try readKey(device, profile: profile, slot: slot, fn: fn)
+            if current == binding { return current }
+        }
+        throw KeyboardError.mismatch
     }
 
     private static func readKey(_ device: KeyboardAccess, profile: UInt8, slot: UInt8, fn: Bool) throws -> [UInt8] {
@@ -216,6 +220,7 @@ enum Keyboard {
         }
         switch connection {
         case .usb: return try withUSBDevice(verified)
+        case .receiver: return try ReceiverKeyboard.withAccess(verified)
         case .bluetooth, .bluetoothLowEnergy: return try BluetoothKeyboard.withAccess(connection: connection, verified)
         }
     }
@@ -255,13 +260,15 @@ enum Keyboard {
     static func isAvailable(_ connection: KeyboardConnection) -> Bool {
         switch connection {
         case .usb: hasUSBInterface()
+        case .receiver: ReceiverKeyboard.isOnline
         case .bluetooth, .bluetoothLowEnergy: BluetoothKeyboard.hasAccess && BluetoothKeyboard.isConnected(connection)
         }
     }
 
     static func availableConnection() -> KeyboardConnection? {
         if isAvailable(.usb) { return .usb }
-        return BluetoothKeyboard.hasAccess ? BluetoothKeyboard.detectedConnection() : nil
+        if BluetoothKeyboard.hasAccess, let bluetooth = BluetoothKeyboard.detectedConnection() { return bluetooth }
+        return ReceiverKeyboard.isOnline ? .receiver : nil
     }
 
     static func verifyIdentity(_ reply: [UInt8]) throws {

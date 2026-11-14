@@ -22,7 +22,7 @@ Kenar çubuğundaki **Zamanlama** panelinde günlük başlangıç ve bitiş saat
 
 ### Klavyenin pil seviyesine bak
 
-Kenar çubuğu **TOP75 BT5.0** ve **2,4 GHz USB alıcısı** bağlantılarında pil yüzdesini gösterir. BT5.0’da uygulama, macOS’un tuttuğu değeri yaklaşık 30 saniyede bir okur. **Cihaz ayarları → Pil ve şarj** bölümünden **Düşük pil bildirimi**ni aç ve macOS bildirim iznini ver. TOP75 çalışırken pil %20 veya altındaysa uyarı alırsın. Şarj animasyonu klavyenin ekranında görünür. Klavye ayarlarını değiştirmek için USB veya Bluetooth kullan.
+Kenar çubuğu **TOP75 BT5.0** ve **2,4 GHz USB alıcısı** bağlantılarında pil yüzdesini gösterir. BT5.0’da uygulama, macOS’un tuttuğu değeri yaklaşık 30 saniyede bir okur. **Cihaz ayarları → Pil ve şarj** bölümünden **Düşük pil bildirimi**ni aç ve macOS bildirim iznini ver. TOP75 çalışırken pil %20 veya altındaysa uyarı alırsın. Şarj animasyonu klavyenin ekranında görünür. Klavye ayarları USB, Bluetooth ve 2,4 GHz alıcı üzerinden değiştirilebilir.
 
 ## Sık sorulan sorular
 
@@ -33,6 +33,13 @@ Evet. **TOP75 BT5.0** veya **TOP75 BT3.0** ile eşleş, **Giriş İzleme** iznin
 ### Klavye Bluetooth ile bağlıyken uygulama neden “USB bağlantısı yok” diyor?
 
 **TOP75 → TOP75 Hakkında** menüsünden sürüme bak. Bluetooth aydınlatması **0.7.0** ile, profil, tuş ataması ve makro gibi diğer Bluetooth özellikleri **0.8.0** ile eklendi. Dock eski bir kopyayı açarsa **Finder → Uygulamalar → TOP75** üzerinden aç. [En yeni Mac sürümünü indir](https://github.com/kreativecenter/top75-macos/releases/latest)
+
+## Mac’te hızlı kontroller ve otomasyonlar
+
+- **Menü çubuğu.** Bağlantıyı, pili ve etkin profili gör. Profili değiştir, ışığı açıp kapat veya o anki zamanlama aralığını atla.
+- **Pil tasarrufu.** Cihaz ayarlarında pil eşiğini ve ışığı kısma veya kapatma seçeneğini belirle. Pil seçilen eşiğin 5 puan üzerine çıkınca önceki aydınlatma geri gelir. Işık kapatma zamanlaması önceliklidir. Elle değişiklik yaparsan pil toparlanana kadar tasarruf bekler.
+- **Uygulamaya göre profil.** Cihaz ayarlarından uygulama ekle ve profil seç. Kuralsız uygulamalar için varsayılan profili belirle. Elle profil seçimi, ön plandaki uygulama değişene kadar geçerlidir.
+- **Makro yedeği.** Yeni JSON yedeği 50 makro yuvasını içerir. Geri yükleme önizlemesinden istediğin yuvaları seçebilirsin. Eski JSON dosyaları açılabilir.
 
 ## Ekran görüntüleri
 
@@ -64,7 +71,7 @@ Evet. **TOP75 BT5.0** veya **TOP75 BT3.0** ile eşleş, **Giriş İzleme** iznin
 | **Ekran** | PNG, JPEG veya GIF sürükleyip bırak. 128 × 128 önizlemede oynat, sığdır veya ortadan kırp. Aktarım ilerlemesi panel değiştirince de görünür. |
 | **Cihaz ayarları** | Tuş tepkisini, otomatik işletim sistemi algılamayı ve kablosuz uyku sürelerini yönet. JSON kaydını klavyeyle karşılaştır ve istediğin farkları geri yükle. |
 
-Apple Silicon ve Intel için derlenen uygulama macOS 14 ve üstünü hedefler. DMG ve ZIP, aynı imzalı ve Apple noter onaylı uygulamayı içerir. Uygulama TOP75 kimliği **957** olan modeli doğrular. Sabit görsel yükleme, toplu tuş rengi yazma ve seçmeli JSON geri yükleme fiziksel klavyede doğrulandı. GIF oynatma için fiziksel doğrulama bekleniyor. Geri yükleme için yedek ile klavyenin firmware sürümü eşleşmeli. Eski yedeklerde Fn atamaları, kaydın alındığı etkin profil için kullanılabilir. JSON kaydı makro içeriğini ve ekran görsellerini kapsamaz. Firmware güncelleme, müzik ve ekran eşleme ile fare olaylı makrolar henüz yok.
+Apple Silicon ve Intel için derlenen uygulama macOS 14 ve üstünü hedefler. DMG ve ZIP, aynı imzalı ve Apple noter onaylı uygulamayı içerir. Uygulama TOP75 kimliği **957** olan modeli doğrular. Sabit görsel yükleme, toplu tuş rengi yazma ve seçmeli JSON geri yükleme fiziksel klavyede doğrulandı. GIF oynatma için fiziksel doğrulama bekleniyor. Geri yükleme için yedek ile klavyenin firmware sürümü eşleşmeli. Eski yedeklerde Fn atamaları, kaydın alındığı etkin profil için kullanılabilir. JSON kaydı ekran görsellerini kapsamaz. Firmware güncelleme, müzik ve ekran eşleme ile fare olaylı makrolar henüz yok.
 
 Xcode ve Swift 6 ile depoda `./scripts/build.sh` çalıştırarak dağıtım paketini oluşturabilirsin. Kaynak kodu [MIT lisansı](../LICENSE) ile yayımlanır.
 

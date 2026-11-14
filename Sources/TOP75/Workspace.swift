@@ -222,11 +222,7 @@ struct WorkspaceView: View {
                     Text(l(storedPage.title)).font(.largeTitle.bold())
                         .accessibilityAddTraits(.isHeader)
                     Text(l(storedPage.subtitle)).foregroundStyle(.secondary)
-                    if battery.receiverOnline && !bluetoothDetected && !connected && storedPage != .guide {
-                        Label(l("Klavye ayarları için USB veya Bluetooth ile bağlan."), systemImage: "info.circle")
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
-                    } else if bluetoothDetected && storedPage == .display {
+                    if !connected && (bluetoothDetected || battery.receiverOnline) && storedPage == .display {
                         Label(l("Bu bölüm için USB bağlantısı gerekli."), systemImage: "cable.connector")
                             .font(.callout)
                             .foregroundStyle(.secondary)
@@ -309,7 +305,7 @@ struct WorkspaceView: View {
         let usb = Keyboard.hasUSBInterface()
         connected = usb
         bluetoothConnection = usb ? nil : BluetoothKeyboard.detectedConnection()
-        connection = usb ? .usb : BluetoothKeyboard.hasAccess ? bluetoothConnection : nil
+        connection = Keyboard.availableConnection()
     }
 
     private func allowBluetoothAccess() {
@@ -352,6 +348,7 @@ struct WorkspaceView: View {
 struct PreferencesView: View {
     @Environment(\.appLanguage) private var l
     @Binding var preference: LanguagePreference
+    @AppStorage("showMenuBar") private var showMenuBar = true
 
     var body: some View {
         Form {
@@ -360,6 +357,7 @@ struct PreferencesView: View {
                 Text("English").tag(LanguagePreference.english)
                 Text("Türkçe").tag(LanguagePreference.turkish)
             }
+            Toggle(l("Menü çubuğunda göster"), isOn: $showMenuBar)
         }
         .formStyle(.grouped)
         .frame(width: 400, height: 136)

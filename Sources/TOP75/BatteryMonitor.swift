@@ -62,12 +62,16 @@ final class BatteryMonitor {
                 } else {
                     bluetoothPercent = nil
                     nextBluetoothRead = nil
-                    let receiver = verifiedReceiver
-                    let reading = await Task.detached { ReceiverBattery.read(verifiedReceiver: receiver) }.value
-                    receiverOnline = reading?.status.online == true
-                    percent = reading?.status.percent
-                    verifiedReceiver = receiverOnline ? reading?.receiverID : nil
+                    if !WorkspaceTransfer.shared.isBusy {
+                        let receiver = verifiedReceiver
+                        let reading = await Task.detached { ReceiverKeyboard.read(verifiedReceiver: receiver) }.value
+                        receiverOnline = reading?.status.online == true
+                        percent = reading?.status.percent
+                        verifiedReceiver = receiverOnline ? reading?.receiverID : nil
+                    }
                 }
+                ReceiverKeyboard.setOnline(receiverOnline)
+                ProfileAutomation.shared.connectionChanged()
                 await notifyIfNeeded()
                 try? await Task.sleep(for: .seconds(5))
             }
@@ -90,6 +94,24 @@ final class BatteryMonitor {
         alertsEnabled = enabled
         UserDefaults.standard.set(enabled, forKey: "batteryAlertsEnabled")
         await notifyIfNeeded()
+    }
+
+    func sendTestNotification(language: AppLanguage) async -> Bool {
+        guard Bundle.main.bundleIdentifier != nil else { return false }
+        let center = UNUserNotificationCenter.current()
+        guard (try? await center.requestAuthorization(options: [.alert, .sound])) == true else {
+            await refreshAuthorization()
+            return false
+        }
+        await refreshAuthorization()
+        let content = UNMutableNotificationContent()
+        content.title = language("TOP75 test bildirimi")
+        content.body = language("Düşük pil bildirimleri bu şekilde görünür.")
+        content.sound = .default
+        do {
+            try await center.add(UNNotificationRequest(identifier: "top75-battery-test", content: content, trigger: nil))
+            return true
+        } catch { return false }
     }
 
     private func notifyIfNeeded() async {

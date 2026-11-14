@@ -4,6 +4,9 @@ import SwiftUI
 struct BatteryStatusView: View {
     @Environment(\.appLanguage) private var l
     private let battery = BatteryMonitor.shared
+    @Bindable private var scheduler = LightingScheduler.shared
+    @State private var testing = false
+    @State private var testStatus = ""
 
     var body: some View {
         Section(l("Pil ve şarj")) {
@@ -34,6 +37,26 @@ struct BatteryStatusView: View {
                     }
                 }
             }
+            Button(l("Test bildirimi gönder")) {
+                testing = true
+                Task {
+                    let sent = await battery.sendTestNotification(language: l)
+                    testStatus = sent ? "Test bildirimi gönderildi." : "Bildirim gönderilemedi. macOS bildirim ayarlarını kontrol et."
+                    testing = false
+                }
+            }
+            .disabled(testing)
+            if !testStatus.isEmpty { Text(l(testStatus)).foregroundStyle(.secondary) }
+            Picker(l("Düşük pilde aydınlatma"), selection: $scheduler.batteryAction) {
+                Text(l("Olduğu gibi bırak")).tag(LightingScheduler.BatteryAction.off)
+                Text(l("Işığı kıs")).tag(LightingScheduler.BatteryAction.dim)
+                Text(l("Işığı kapat")).tag(LightingScheduler.BatteryAction.dark)
+            }
+            if scheduler.batteryAction != .off {
+                Stepper(l.format("Pil tasarrufu eşiği: %@", (Double(scheduler.batteryThreshold) / 100).formatted(.percent)),
+                        value: $scheduler.batteryThreshold, in: 10...50, step: 5)
+            }
+            if scheduler.batterySaving { Text(l("Pil tasarrufu etkin")).foregroundStyle(.secondary) }
             Text(l("Pil yüzdesi Bluetooth 5.0 ve 2,4 GHz bağlantılarında okunur. Şarj durumunu klavyenin kendi ekranından kontrol et."))
                 .foregroundStyle(.secondary)
         }

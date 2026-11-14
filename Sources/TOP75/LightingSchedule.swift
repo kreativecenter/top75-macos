@@ -37,6 +37,8 @@ final class LightingScheduler {
         let connection: KeyboardConnection
         let lighting: Lighting
         var applied = false
+        var expected: Lighting? = nil
+        var pending: Lighting? = nil
     }
 
     var schedule: LightingSchedule {
@@ -46,6 +48,25 @@ final class LightingScheduler {
             scheduleChanged()
         }
     }
+    enum BatteryAction: String, CaseIterable {
+        case off, dim, dark
+    }
+
+    var batteryAction = BatteryAction(rawValue: UserDefaults.standard.string(forKey: "batteryLightingAction") ?? "") ?? .off {
+        didSet {
+            UserDefaults.standard.set(batteryAction.rawValue, forKey: "batteryLightingAction")
+            batteryOverride = false
+            scheduleChanged()
+        }
+    }
+    var batteryThreshold = (UserDefaults.standard.object(forKey: "batteryLightingThreshold") as? Int) ?? 20 {
+        didSet {
+            UserDefaults.standard.set(batteryThreshold, forKey: "batteryLightingThreshold")
+            batteryOverride = false
+            scheduleChanged()
+        }
+    }
+    private(set) var batterySaving = false
     private(set) var status = "Zamanlama kapalı"
     private(set) var revision = 0
     private(set) var canSkip = false
@@ -55,9 +76,11 @@ final class LightingScheduler {
     @ObservationIgnored private var skipUntil: Date? {
         didSet { UserDefaults.standard.set(skipUntil, forKey: "lightingScheduleSkipUntil") }
     }
-    @ObservationIgnored private var checkedInterval: Date?
+    @ObservationIgnored private var batteryOverride = false
+    @ObservationIgnored private var batteryLow = false
     @ObservationIgnored private var monitoring: Task<Void, Never>?
     @ObservationIgnored private var busy = false
+    @ObservationIgnored private var checked: Mode?
 
     private init() {
         let defaults = UserDefaults.standard
@@ -83,15 +106,57 @@ final class LightingScheduler {
     }
 
     func manualLightingChanged() {
-        guard let interval = schedule.interval(at: .now) else { return }
-        skipUntil = interval.end
+        if let interval = schedule.interval(at: .now) { skipUntil = interval.end }
+        batteryOverride = batteryLow
+        batterySaving = false
         saved = nil
-        status = "Bu aralık atlandı"
+        checked = nil
         canSkip = false
     }
 
+    func quickToggle(connection: KeyboardConnection) async throws {
+        guard !busy else { throw KeyboardError.mismatch }
+        busy = true
+        defer { busy = false }
+        let automatic = saved
+        try await Task.detached {
+            try Keyboard.withDevice(connection: connection) { device in
+                let current = try Keyboard.readLighting(device)
+                let key = "quickPreviousLighting-" + device.deviceIdentifier
+                let defaults = UserDefaults.standard
+                if current.effect == 0 {
+                    let previous = automatic.flatMap { $0.identifier == device.deviceIdentifier ? $0.lighting : nil }
+                        ?? defaults.data(forKey: key).flatMap { try? JSONDecoder().decode(Lighting.self, from: $0) }
+                    let target = previous ?? Lighting(effect: 1, speed: 0, brightness: 2, flags: 7, rgb: 0x739BFF)
+                    _ = try Keyboard.apply(device, lighting: target, replacing: current)
+                } else {
+                    defaults.set(try JSONEncoder().encode(current), forKey: key)
+                    _ = try Keyboard.apply(device, lighting: Self.off, replacing: current)
+                }
+            }
+        }.value
+        manualLightingChanged()
+        revision += 1
+    }
+
+    nonisolated private static let off = Lighting(effect: 0, speed: 0, brightness: 0, flags: 7, rgb: 0)
+
+    enum Mode: Equatable, Sendable {
+        case quiet, dim, dark
+
+        func target(from current: Lighting) -> Lighting {
+            guard current.effect != 0 else { return current }
+            if self != .dim { return LightingScheduler.off }
+            // Per-key colors have no known brightness setting on this firmware.
+            if current.effect == 66 { return LightingScheduler.off }
+            var target = current
+            target.brightness = 0
+            return target
+        }
+    }
+
     private func scheduleChanged() {
-        checkedInterval = nil
+        checked = nil
         Task { await refresh() }
     }
 
@@ -103,45 +168,50 @@ final class LightingScheduler {
         let quiet = interval != nil && skipUntil == nil
         canSkip = quiet
 
-        if !quiet && saved == nil {
-            status = interval != nil ? "Bu aralık atlandı" : schedule.enabled
-                ? (schedule.isValid ? "Sonraki aralık bekleniyor" : "Başlangıç ve bitiş farklı olmalı")
-                : "Zamanlama kapalı"
+        if let percent = BatteryMonitor.shared.percent {
+            if percent <= batteryThreshold { batteryLow = true }
+            if percent >= batteryThreshold + 5 {
+                batteryLow = false
+                batteryOverride = false
+            }
+        }
+        let savesBattery = batteryAction != .off && batteryLow && !batteryOverride
+        // Keep a verified restriction in place while the battery source is temporarily unavailable.
+        let hasBatteryEvidence = BatteryMonitor.shared.percent != nil || batterySaving
+        let mode: Mode? = quiet ? .quiet : savesBattery && hasBatteryEvidence
+            ? (batteryAction == .dim ? .dim : .dark) : nil
+        status = quiet ? "Işık kapatma aralığı etkin" : interval != nil ? "Bu aralık atlandı"
+            : schedule.enabled ? (schedule.isValid ? "Sonraki aralık bekleniyor" : "Başlangıç ve bitiş farklı olmalı")
+            : "Zamanlama kapalı"
+        guard mode != nil || saved != nil else {
+            checked = nil
+            batterySaving = false
             return
         }
-
-        let available: KeyboardConnection?
-        if let saved {
-            available = Keyboard.isAvailable(saved.connection) ? saved.connection : nil
-        } else {
-            available = Keyboard.availableConnection()
-        }
-        guard let connection = available else {
+        let connection = saved?.connection ?? Keyboard.availableConnection()
+        guard let connection, Keyboard.isAvailable(connection) else {
             status = saved == nil ? "Klavye bağlantısı bekleniyor" : "Önceki klavye bağlantısı bekleniyor"
-            checkedInterval = nil
+            checked = nil
             return
         }
-        if quiet && (saved?.applied == true || checkedInterval == interval?.start) {
-            status = "Işık kapatma aralığı etkin"
-            return
-        }
+        if let mode, checked == mode { return }
 
         busy = true
         defer { busy = false }
         do {
-            if quiet, let interval {
-                try await dim(connection, interval: interval)
+            if let mode {
+                try await restrict(connection, mode: mode)
+                batterySaving = mode != .quiet
             } else if let previous = saved {
                 try await restore(previous)
-                status = interval != nil ? "Bu aralık atlandı" : schedule.enabled
-                    ? "Sonraki aralık bekleniyor" : "Zamanlama kapalı"
+                batterySaving = false
             }
         } catch {
             status = "Zamanlama için klavye yanıtı bekleniyor"
         }
     }
 
-    private func dim(_ connection: KeyboardConnection, interval: DateInterval) async throws {
+    private func restrict(_ connection: KeyboardConnection, mode: Mode) async throws {
         if saved == nil {
             let previous = try await Task.detached {
                 try Keyboard.withDevice(connection: connection) { device in
@@ -149,46 +219,51 @@ final class LightingScheduler {
                                   lighting: try Keyboard.readLighting(device))
                 }
             }.value
-            guard schedule.interval(at: .now)?.start == interval.start, skipUntil == nil else { return }
-            if previous.lighting.effect == 0 {
-                checkedInterval = interval.start
-                status = "Işık kapatma aralığı etkin"
+            let target = mode.target(from: previous.lighting)
+            if previous.lighting.matches(target) {
+                checked = mode
                 return
             }
-            // Save before sending the command so a restart can restore the previous effect.
             saved = previous
         }
         guard let previous = saved else { return }
+        let target = mode.target(from: previous.lighting)
+        // Keep both the last applied state and the pending target recoverable across interruptions.
+        let expected = previous.expected ?? (previous.applied ? Self.off : previous.lighting)
+        saved?.pending = target
         let changed = try await Task.detached {
             try Keyboard.withDevice(connection: connection) { device in
                 guard device.deviceIdentifier == previous.identifier else { throw KeyboardError.mismatch }
                 let actual = try Keyboard.readLighting(device)
-                if actual.effect == 0 { return false }
-                guard actual.matches(previous.lighting) else { throw KeyboardError.mismatch }
-                let off = Lighting(effect: 0, speed: 0, brightness: 0, flags: 7, rgb: 0)
-                _ = try Keyboard.apply(device, lighting: off, replacing: actual)
+                if actual.matches(target) { return false }
+                guard actual.matches(expected) || previous.pending.map(actual.matches) == true else { throw KeyboardError.mismatch }
+                _ = try Keyboard.apply(device, lighting: target, replacing: actual)
                 return true
             }
         }.value
-        if saved == previous {
+        if saved?.identifier == previous.identifier, saved?.pending == target {
             saved?.applied = true
-            status = "Işık kapatma aralığı etkin"
+            saved?.expected = target
+            saved?.pending = nil
+            checked = mode
         }
         if changed { revision += 1 }
     }
 
     private func restore(_ previous: SavedLighting) async throws {
+        let expected = previous.expected ?? (previous.applied ? Self.off : previous.lighting)
         let changed = try await Task.detached {
             try Keyboard.withDevice(connection: previous.connection) { device in
                 guard device.deviceIdentifier == previous.identifier else { throw KeyboardError.mismatch }
                 let actual = try Keyboard.readLighting(device)
-                guard actual.effect == 0 else { return false }
+                guard actual.matches(expected) || previous.pending.map(actual.matches) == true,
+                      !actual.matches(previous.lighting) else { return false }
                 _ = try Keyboard.apply(device, lighting: previous.lighting, replacing: actual)
                 return true
             }
         }.value
         if saved == previous { saved = nil }
-        checkedInterval = nil
+        checked = nil
         if changed { revision += 1 }
     }
 

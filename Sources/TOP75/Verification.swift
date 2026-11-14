@@ -30,18 +30,18 @@ enum Verification {
     static func verifyReceiverBattery() {
         var reply: [UInt8] = [0, 3, 0, 0, 1, 1, 1, 0x70]
         reply += Array(repeating: 0, count: 56)
-        precondition(ReceiverBattery.Status(reply: reply)?.percent == 3)
+        precondition(ReceiverKeyboard.Status(reply: reply)?.percent == 3)
         reply[3] = 1
-        precondition(ReceiverBattery.Status(reply: reply)?.online == false)
-        precondition(ReceiverBattery.Status(reply: reply)?.percent == nil)
+        precondition(ReceiverKeyboard.Status(reply: reply)?.online == false)
+        precondition(ReceiverKeyboard.Status(reply: reply)?.percent == nil)
         reply[3] = 0
         for invalid: UInt8 in [0, 101, 255] {
             reply[1] = invalid
-            precondition(ReceiverBattery.Status(reply: reply)?.percent == nil)
+            precondition(ReceiverKeyboard.Status(reply: reply)?.percent == nil)
         }
-        precondition(ReceiverBattery.Status(reply: Array(reply.prefix(8))) == nil)
+        precondition(ReceiverKeyboard.Status(reply: Array(reply.prefix(8))) == nil)
         reply[6] = 0
-        precondition(ReceiverBattery.Status(reply: reply) == nil)
+        precondition(ReceiverKeyboard.Status(reply: reply) == nil)
 
         var warning = LowBatteryWarning(notified: false)
         precondition(warning.shouldNotify(percent: 20))
@@ -54,6 +54,11 @@ enum Verification {
     }
 
     static func verifyLightingSchedule() {
+        let lighting = Lighting(effect: 4, speed: 3, brightness: 4, flags: 7, rgb: 0x234567)
+        let dimmed = LightingScheduler.Mode.dim.target(from: lighting)
+        precondition(dimmed.effect == lighting.effect && dimmed.rgb == lighting.rgb && dimmed.brightness == 0)
+        precondition(LightingScheduler.Mode.quiet.target(from: dimmed).effect == 0)
+        precondition(LightingScheduler.Mode.dark.target(from: dimmed).effect == 0)
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "Europe/Istanbul")!
         func date(_ day: Int, _ hour: Int, _ minute: Int = 0) -> Date {
@@ -124,6 +129,24 @@ enum Verification {
         )
         let legacyPlan = try SnapshotRestorePlan(current: sharedCurrent, backup: SettingsSnapshot.decode(encoder.encode(legacy)))
         precondition(Set(legacyPlan.changes) == [.activeProfile, .sharedFn(slot: 78)])
+        var currentWithMacros = current
+        currentWithMacros.macros = [49: Data(repeating: 0, count: 256), 48: Data(repeating: 0, count: 256)]
+        let tap = try Macro(repeats: 1, strokes: [
+            .init(key: 4, down: true, delay: 35), .init(key: 4, down: false, delay: 35)
+        ]).encoded()
+        var unsupported = tap
+        unsupported[2] = 0xF9
+        let macroBackup = SettingsSnapshot(
+            formatVersion: 3, device: SettingsSnapshot.model, recordedAt: Date(),
+            activeProfile: 0, firmware: 123, lighting: lighting, options: options,
+            keyColors: colors, profiles: profiles, macros: [49: Data(tap), 48: Data(unsupported)]
+        )
+        let parsedMacros = try SettingsSnapshot.decode(encoder.encode(macroBackup))
+        let macroPlan = try SnapshotRestorePlan(current: currentWithMacros, backup: parsedMacros)
+        precondition(macroPlan.changes == [.macro(49)] && macroPlan.unsupportedMacros == [48])
+        var invalidMacros = macroBackup
+        invalidMacros.macros = [50: Data(tap)]
+        precondition((try? SettingsSnapshot.decode(encoder.encode(invalidMacros))) == nil)
         var invalid = data
         let modelRange = invalid.range(of: Data(SettingsSnapshot.model.utf8))!
         invalid.replaceSubrange(modelRange, with: "Another keyboard".utf8)

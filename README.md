@@ -30,7 +30,7 @@ In the **Schedule** sidebar panel, choose a daily start and end time, such as 23
 
 ### Check the keyboard battery
 
-The sidebar shows the battery percentage on **TOP75 BT5.0** and with the **2.4 GHz USB receiver**. For BT5.0, the app reads the latest battery percentage macOS already holds about every 30 seconds. In **Device Settings → Battery and charging**, turn on **Low battery notification** and allow the macOS prompt. TOP75 must be running to alert you at 20% or below. The keyboard display shows charging activity. Use USB or Bluetooth to change keyboard settings.
+The sidebar shows the battery percentage on **TOP75 BT5.0** and with the **2.4 GHz USB receiver**. For BT5.0, the app reads the latest battery percentage macOS already holds about every 30 seconds. In **Device Settings → Battery and charging**, turn on **Low battery notification** and allow the macOS prompt. TOP75 must be running to alert you at 20% or below. The keyboard display shows charging activity.
 
 ## Frequently asked questions
 
@@ -45,6 +45,13 @@ Open **TOP75 → About TOP75** to check which version is running. Bluetooth ligh
 ### How do I upload a GIF to the TOP75 display?
 
 Connect the keyboard with a USB data cable and select **Display**. Drop in a GIF to preview the 128 × 128 animation, adjust the framing, and upload up to 25 frames. Still PNG and JPEG images can be sent to one of five slots.
+
+## Automate TOP75 on your Mac
+
+- **Menu bar.** See the connection, battery and active profile. Switch profiles, toggle the lights or skip the current lights-off interval.
+- **Battery saver.** In **Device Settings → Battery and charging**, choose whether to dim or turn off the lights. The app restores the previous lighting once the battery rises five percentage points above your chosen threshold. The daily lights-off schedule takes priority. A manual lighting change suspends battery saver until the battery recovers.
+- **App-specific profiles.** Add apps in **Device Settings → App-specific profiles** and choose the profile each one should use. Choose a default for other apps. Switching profiles manually overrides the current app rule until you switch apps.
+- **Macro backup.** New JSON backups include all 50 macro slots. In the restore preview, choose the macro slots to write. Versions 1 and 2 can still be opened. Macros with events the app cannot encode are listed separately.
 
 ## Screenshots
 
@@ -76,13 +83,13 @@ Connect the keyboard with a USB data cable and select **Display**. Drop in a GIF
 | **Display** | Drop a PNG, JPEG or GIF and preview the 128 × 128 output with Fit or Centre Crop. Send stills to one of five slots or upload a GIF with up to 25 frames. Upload progress stays visible when switching panels. |
 | **Device Settings** | Adjust debounce, automatic OS detection, and the Bluetooth and 2.4 GHz sleep timers. Export a JSON backup. Compare it with the keyboard and restore selected key assignments, colors and device settings. |
 
-Configuration runs locally. The app reads back supported settings after writes and shows the result. Effects, per-key colors and key assignments support undo after a verified change. JSON restore requires the same firmware as the backup. Older JSON backups supply Fn assignments for the profile that was active when they were saved. Profile names are stored on the Mac. Macro contents and display artwork are outside the JSON format.
+Configuration runs locally. The app reads back supported settings after writes and shows the result. Effects, per-key colors and key assignments support undo after a verified change. JSON restore requires the same firmware as the backup. Older JSON backups supply Fn assignments for the profile that was active when they were saved. Profile names are stored on the Mac. Display artwork is outside the JSON format.
 
 ## Compatibility
 
 - **Keyboard** — Darmoshark TOP75, USB device ID **957**. The app checks the keyboard’s reported ID before reading or writing settings.
 - **Mac** — macOS **14 Sonoma** or later. The DMG and ZIP contain the same universal app for Apple Silicon and Intel. Hardware testing has used an Apple Silicon Mac.
-- **Connection** — wired USB supports every panel. TOP75 BT5.0 and BT3.0 support keyboard configuration. Display uploads use USB. Bluetooth configuration requires Input Monitoring permission.
+- **Connection** — wired USB supports every panel. TOP75 BT5.0, BT3.0 and the 2.4 GHz USB receiver support keyboard configuration. Display uploads use USB. Bluetooth configuration requires Input Monitoring permission.
 - **Release status** — check the release notes for signing and notarization status. Still-image upload, batch color writes and selective JSON restore were verified on a wired TOP75. On-device GIF playback still needs physical validation. Firmware flashing, live music or screen effects, and mouse-event macros remain open.
 
 ## Build from source
