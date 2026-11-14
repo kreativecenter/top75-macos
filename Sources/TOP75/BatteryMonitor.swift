@@ -47,12 +47,27 @@ final class BatteryMonitor {
             UNUserNotificationCenter.current().delegate = notificationDelegate
         }
         monitoring = Task {
+            var bluetoothPercent: Int?
+            var nextBluetoothRead: ContinuousClock.Instant?
             while !Task.isCancelled {
-                let receiver = verifiedReceiver
-                let reading = await Task.detached { ReceiverBattery.read(verifiedReceiver: receiver) }.value
-                receiverOnline = reading?.status.online == true
-                percent = reading?.status.percent
-                verifiedReceiver = receiverOnline ? reading?.receiverID : nil
+                if BluetoothKeyboard.isConnected(.bluetoothLowEnergy) {
+                    receiverOnline = false
+                    verifiedReceiver = nil
+                    let now = ContinuousClock.now
+                    if nextBluetoothRead.map({ now >= $0 }) ?? true {
+                        bluetoothPercent = await Task.detached { BluetoothBattery.readPercent() }.value
+                        nextBluetoothRead = now + .seconds(30)
+                    }
+                    percent = bluetoothPercent
+                } else {
+                    bluetoothPercent = nil
+                    nextBluetoothRead = nil
+                    let receiver = verifiedReceiver
+                    let reading = await Task.detached { ReceiverBattery.read(verifiedReceiver: receiver) }.value
+                    receiverOnline = reading?.status.online == true
+                    percent = reading?.status.percent
+                    verifiedReceiver = receiverOnline ? reading?.receiverID : nil
+                }
                 await notifyIfNeeded()
                 try? await Task.sleep(for: .seconds(5))
             }

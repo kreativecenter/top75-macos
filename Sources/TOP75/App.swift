@@ -209,6 +209,7 @@ enum Launch {
             Verification.verifyBluetoothKeyboard()
             Verification.verifyLightingSchedule()
             Verification.verifyReceiverBattery()
+            Verification.verifyBluetoothBattery()
             try! Verification.verifyRestore()
             try! Verification.verifyArtwork()
             print("Localization, guide, layout, USB and Bluetooth HID, macro, restore and GIF/RGB565 checks passed.")

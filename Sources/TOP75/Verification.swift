@@ -13,6 +13,20 @@ enum Verification {
         precondition(event.withUnsafeBufferPointer { BluetoothKeyboard.payload(report: $0, id: 6) } == nil)
     }
 
+    static func verifyBluetoothBattery() {
+        let report = """
+        Now drawing from 'AC Power'
+         -InternalBattery-0 (id=42) 80%; AC attached
+         -TOP75 BT5.0  (id=87)\t23%;
+         -TOP75 BT3.0 (id=88) 38%;
+        """
+        precondition(BluetoothBattery.percent(in: report) == 23)
+        precondition(BluetoothBattery.percent(in: "-TOP75 BT5.0 (id=87) 0%;") == 0)
+        precondition(BluetoothBattery.percent(in: "-TOP75 BT5.0 (id=87) 101%;") == nil)
+        precondition(BluetoothBattery.percent(in: "-Other TOP75 BT5.0 (id=87) 25%;") == nil)
+        precondition(BluetoothBattery.percent(in: report + "\n-TOP75 BT5.0 (id=89) 52%;") == nil)
+    }
+
     static func verifyReceiverBattery() {
         var reply: [UInt8] = [0, 3, 0, 0, 1, 1, 1, 0x70]
         reply += Array(repeating: 0, count: 56)

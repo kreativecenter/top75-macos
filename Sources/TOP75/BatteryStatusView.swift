@@ -9,7 +9,7 @@ struct BatteryStatusView: View {
         Section(l("Pil ve şarj")) {
             LabeledContent(l("Pil seviyesi")) {
                 if let percent = battery.percent {
-                    Text(Double(percent) / 100, format: .percent)
+                    Text(Double(percent) / 100, format: .percent.locale(Locale(identifier: l.code)))
                         .monospacedDigit()
                         .foregroundStyle(battery.isLow ? Color.orange : Color.primary)
                 } else {
@@ -34,7 +34,7 @@ struct BatteryStatusView: View {
                     }
                 }
             }
-            Text(l("Pil yüzdesi 2,4 GHz bağlantısında okunur. Şarj durumunu klavyenin kendi ekranından kontrol et."))
+            Text(l("Pil yüzdesi Bluetooth 5.0 ve 2,4 GHz bağlantılarında okunur. Şarj durumunu klavyenin kendi ekranından kontrol et."))
                 .foregroundStyle(.secondary)
         }
         .task { await battery.refreshAuthorization() }

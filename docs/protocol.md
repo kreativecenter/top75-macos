@@ -44,3 +44,7 @@ The TOP75 receiver exposes USB VID `0x3151`, PID `0x4011`, usage page `0xFFFF` a
 The connected sample reported `00 03 00 00 01 01 01 00` at low charge. After the keyboard went offline, byte 3 changed to `01` while the old level remained cached. The receiver's status does not establish whether the battery is charging. On TOP75 BT3.0, macOS exposed no battery percentage and the Bluetooth HID configuration replies did not identify a usable battery command. The keyboard's built-in display remains the reference for charging.
 
 See the [sharkfin receiver exchange and status fields](https://github.com/dniminenn/sharkfin/blob/master/docs/PROTOCOL.md#24-ghz-receiver) for the underlying receiver format.
+
+## Bluetooth 5.0 battery
+
+The tested TOP75 BT5.0 unit used VID `0x3151`, PID `0x4013` and vendor report ID 6 on usage page `0xFF55`. It answered the same `06 55` identity, firmware and lighting queries as the BT3.0 connection. macOS reported 23% for this connection via `pmset -g accps`. TOP75 reads that system value about every 30 seconds while the matching Bluetooth HID device is present. It does not send periodic battery reports to the keyboard.

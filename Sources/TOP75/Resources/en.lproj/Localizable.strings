@@ -294,7 +294,7 @@
 "Bu eski yedekte Fn atamaları, kaydın alındığı etkin profil için kullanılabilir." = "This older backup supplies Fn assignments for the profile that was active when it was saved.";
 "Fn · Profil 2 ve 3" = "Fn · Profiles 2 and 3";
 "Profil 2 ve 3 aynı Fn katmanını kullanır." = "Profiles 2 and 3 share this Fn layer.";
-"TOP75 BT3.0 bağlantısı bulunamadı." = "The TOP75 BT3.0 connection was unavailable.";
+"TOP75 Bluetooth bağlantısı bulunamadı." = "The TOP75 Bluetooth connection was unavailable.";
 "Bluetooth ayarları için TOP75’e Giriş İzleme izni ver." = "Allow Input Monitoring for TOP75 to configure the keyboard over Bluetooth.";
 "TOP75, Bluetooth ayar sorgusuna yanıt vermedi. Klavyeyi uyandırıp tekrar dene." = "TOP75 did not answer over Bluetooth. Wake the keyboard and try again.";
 "Bluetooth erişimi" = "Bluetooth access";
@@ -334,6 +334,7 @@
 "Düşük pil bildirimi" = "Low battery notification";
 "TOP75 açıkken pil %20’ye düştüğünde macOS bildirimi al." = "Get a macOS notification at 20% while TOP75 is running.";
 "Bildirim ayarlarını aç" = "Open Notification Settings";
-"Pil yüzdesi 2,4 GHz bağlantısında okunur. Şarj durumunu klavyenin kendi ekranından kontrol et." = "Battery level is available over 2.4 GHz. Check the built-in keyboard display to see whether it is charging.";
+"Pil yüzdesi Bluetooth 5.0 ve 2,4 GHz bağlantılarında okunur. Şarj durumunu klavyenin kendi ekranından kontrol et." = "Battery level is available over Bluetooth 5.0 and 2.4 GHz. Check the built-in keyboard display to see whether it is charging.";
 "2,4 GHz bağlı" = "2.4 GHz connected";
 "Klavye ayarları için USB veya Bluetooth ile bağlan." = "Connect over USB or Bluetooth to edit keyboard settings.";
+"Bluetooth 5.0 bağlı" = "Bluetooth 5.0 connected";

@@ -14,7 +14,7 @@ Darmoshark TOP75 için ücretsiz ve açık kaynak Mac uygulaması. RGB rengini d
 
 ### Bluetooth ile bağlan
 
-Mac’te **TOP75 BT3.0** ile eşleş ve TOP75’i aç. Kenar çubuğunda **Bluetooth erişimine izin ver** düğmesine bas. **Sistem Ayarları → Gizlilik ve Güvenlik → Giriş İzleme** bölümünde TOP75’i etkinleştir. macOS isterse uygulamayı yeniden aç. Aydınlatma, profiller, tuş atamaları, makrolar ve JSON yedekleme dahil cihaz ayarları Bluetooth üzerinden çalışır. Ekrana görsel yüklemek için USB ile bağlan.
+Mac’te **TOP75 BT5.0** veya **TOP75 BT3.0** ile eşleş ve TOP75’i aç. Kenar çubuğunda **Bluetooth erişimine izin ver** düğmesine bas. **Sistem Ayarları → Gizlilik ve Güvenlik → Giriş İzleme** bölümünde TOP75’i etkinleştir. macOS isterse uygulamayı yeniden aç. Aydınlatma, profiller, tuş atamaları, makrolar ve JSON yedekleme dahil cihaz ayarları Bluetooth üzerinden çalışır. Ekrana görsel yüklemek için USB ile bağlan.
 
 ### Işık kapatma aralığı
 
@@ -22,13 +22,13 @@ Kenar çubuğundaki **Zamanlama** panelinde günlük başlangıç ve bitiş saat
 
 ### Klavyenin pil seviyesine bak
 
-TOP75, **2,4 GHz USB alıcısı** üzerinden bağlıyken kenar çubuğunda bağlantı ve pil yüzdesi görünür. **Cihaz ayarları → Pil ve şarj** bölümünden **Düşük pil bildirimi**ni aç ve macOS bildirim iznini ver. TOP75 çalışırken pil %20 veya altındaysa uyarı alırsın. Şarj animasyonu klavyenin ekranında görünür. Klavye ayarlarını değiştirmek için USB veya Bluetooth kullan.
+Kenar çubuğu **TOP75 BT5.0** ve **2,4 GHz USB alıcısı** bağlantılarında pil yüzdesini gösterir. BT5.0’da uygulama, macOS’un tuttuğu değeri yaklaşık 30 saniyede bir okur. **Cihaz ayarları → Pil ve şarj** bölümünden **Düşük pil bildirimi**ni aç ve macOS bildirim iznini ver. TOP75 çalışırken pil %20 veya altındaysa uyarı alırsın. Şarj animasyonu klavyenin ekranında görünür. Klavye ayarlarını değiştirmek için USB veya Bluetooth kullan.
 
 ## Sık sorulan sorular
 
 ### TOP75’in RGB ışığını Mac’te Bluetooth üzerinden değiştirebilir miyim?
 
-Evet. **TOP75 BT3.0** ile eşleş, **Giriş İzleme** iznini ver ve **Aydınlatma** panelini aç. Efektleri ve tuş renklerini buradan uygulayabilirsin. [Bluetooth kurulum adımları](#bluetooth-ile-bağlan)
+Evet. **TOP75 BT5.0** veya **TOP75 BT3.0** ile eşleş, **Giriş İzleme** iznini ver ve **Aydınlatma** panelini aç. Efektleri ve tuş renklerini buradan uygulayabilirsin. [Bluetooth kurulum adımları](#bluetooth-ile-bağlan)
 
 ### Klavye Bluetooth ile bağlıyken uygulama neden “USB bağlantısı yok” diyor?
 

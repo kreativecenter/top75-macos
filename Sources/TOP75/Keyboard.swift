@@ -8,7 +8,7 @@ enum KeyboardError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .missing: "TOP75’in USB ayar arayüzü bulunamadı. Klavyeyi veri kablosuyla bağlayıp mod anahtarını OFF konumuna al."
-        case .missingBluetooth: "TOP75 BT3.0 bağlantısı bulunamadı."
+        case .missingBluetooth: "TOP75 Bluetooth bağlantısı bulunamadı."
         case .bluetoothPermission: "Bluetooth ayarları için TOP75’e Giriş İzleme izni ver."
         case .bluetoothTimeout: "TOP75, Bluetooth ayar sorgusuna yanıt vermedi. Klavyeyi uyandırıp tekrar dene."
         case .wrongDevice(let id): "Cihaz kimliği eşleşmedi (\(id))."
@@ -64,7 +64,7 @@ struct Lighting: Codable, Sendable, Equatable {
 }
 
 enum KeyboardConnection: String, Codable, Sendable {
-    case usb, bluetooth
+    case usb, bluetooth, bluetoothLowEnergy
 }
 
 struct KeyboardAccess {
@@ -216,7 +216,7 @@ enum Keyboard {
         }
         switch connection {
         case .usb: return try withUSBDevice(verified)
-        case .bluetooth: return try BluetoothKeyboard.withAccess(verified)
+        case .bluetooth, .bluetoothLowEnergy: return try BluetoothKeyboard.withAccess(connection: connection, verified)
         }
     }
 
@@ -255,13 +255,13 @@ enum Keyboard {
     static func isAvailable(_ connection: KeyboardConnection) -> Bool {
         switch connection {
         case .usb: hasUSBInterface()
-        case .bluetooth: BluetoothKeyboard.isConnected() && BluetoothKeyboard.hasAccess
+        case .bluetooth, .bluetoothLowEnergy: BluetoothKeyboard.hasAccess && BluetoothKeyboard.isConnected(connection)
         }
     }
 
     static func availableConnection() -> KeyboardConnection? {
         if isAvailable(.usb) { return .usb }
-        return isAvailable(.bluetooth) ? .bluetooth : nil
+        return BluetoothKeyboard.hasAccess ? BluetoothKeyboard.detectedConnection() : nil
     }
 
     static func verifyIdentity(_ reply: [UInt8]) throws {

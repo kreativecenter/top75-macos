@@ -7,7 +7,7 @@
   <p><a href="https://github.com/kreativecenter/top75-macos/releases/latest/download/TOP75-macOS.dmg"><strong>Download DMG</strong></a> · <a href="#download-and-install-on-mac">Install on Mac</a> · <a href="#build-from-source">Build</a> · <a href="docs/README.tr.md">Türkçe</a></p>
 </div>
 
-A free, open-source Mac app for the Darmoshark TOP75 mechanical keyboard. Use it to change RGB lighting, remap keys, edit macros, set a daily lights-off schedule, and upload images or GIFs to the keyboard display. Connect over USB or TOP75 BT3.0. The app runs on macOS 14 or later on Apple Silicon and Intel Macs.
+A free, open-source Mac app for the Darmoshark TOP75 mechanical keyboard. Use it to change RGB lighting, remap keys, edit macros, set a daily lights-off schedule, and upload images or GIFs to the keyboard display. Connect over USB or Bluetooth. The app runs on macOS 14 or later on Apple Silicon and Intel Macs.
 
 ## Download and install on Mac
 
@@ -20,7 +20,7 @@ Open TOP75. **USB Connected** appears in the sidebar. Read the current setting, 
 
 ### Connect over Bluetooth
 
-Pair **TOP75 BT3.0** with your Mac and open TOP75. Click **Allow Bluetooth access** in the sidebar and enable TOP75 in **System Settings → Privacy & Security → Input Monitoring**. Reopen the app if macOS asks. Use Bluetooth for lighting, profiles, key assignments, macros, and device settings, including JSON backup and restore. Connect over USB to upload display artwork.
+Pair **TOP75 BT5.0** or **TOP75 BT3.0** with your Mac and open TOP75. Click **Allow Bluetooth access** in the sidebar and enable TOP75 in **System Settings → Privacy & Security → Input Monitoring**. Reopen the app if macOS asks. Use Bluetooth for lighting, profiles, key assignments, macros, and device settings, including JSON backup and restore. Connect over USB to upload display artwork.
 
 **English and Türkçe** are available in **TOP75 → Settings** (⌘,). Press **⌘F** to search the in-app guide.
 
@@ -30,13 +30,13 @@ In the **Schedule** sidebar panel, choose a daily start and end time, such as 23
 
 ### Check the keyboard battery
 
-When the verified TOP75 is online through its **2.4 GHz USB receiver**, the sidebar shows the connection and reported battery percentage. In **Device Settings → Battery and charging**, turn on **Low battery notification** and allow the macOS prompt. TOP75 must be running to alert you at 20% or below. The keyboard display shows charging activity. Use USB or Bluetooth to change keyboard settings.
+The sidebar shows the battery percentage on **TOP75 BT5.0** and with the **2.4 GHz USB receiver**. For BT5.0, the app reads the latest battery percentage macOS already holds about every 30 seconds. In **Device Settings → Battery and charging**, turn on **Low battery notification** and allow the macOS prompt. TOP75 must be running to alert you at 20% or below. The keyboard display shows charging activity. Use USB or Bluetooth to change keyboard settings.
 
 ## Frequently asked questions
 
 ### Can I change the TOP75 RGB lighting over Bluetooth on Mac?
 
-Yes. Pair **TOP75 BT3.0**, grant TOP75 **Input Monitoring** access, then open **Lighting** to apply an effect or set individual key colors. Profiles, remapping, macros, and device settings also work over this connection. [Bluetooth setup](#connect-over-bluetooth)
+Yes. Pair **TOP75 BT5.0** or **TOP75 BT3.0**, grant TOP75 **Input Monitoring** access, then open **Lighting** to apply an effect or set individual key colors. Profiles, remapping, macros, and device settings also work over this connection. [Bluetooth setup](#connect-over-bluetooth)
 
 ### Why does TOP75 say “USB Disconnected” when my keyboard is paired?
 
@@ -82,7 +82,7 @@ Configuration runs locally. The app reads back supported settings after writes a
 
 - **Keyboard** — Darmoshark TOP75, USB device ID **957**. The app checks the keyboard’s reported ID before reading or writing settings.
 - **Mac** — macOS **14 Sonoma** or later. The DMG and ZIP contain the same universal app for Apple Silicon and Intel. Hardware testing has used an Apple Silicon Mac.
-- **Connection** — wired USB supports every panel. TOP75 BT3.0 supports all configuration panels except display uploads and requires Input Monitoring permission.
+- **Connection** — wired USB supports every panel. TOP75 BT5.0 and BT3.0 support keyboard configuration. Display uploads use USB. Bluetooth configuration requires Input Monitoring permission.
 - **Release status** — check the release notes for signing and notarization status. Still-image upload, batch color writes and selective JSON restore were verified on a wired TOP75. On-device GIF playback still needs physical validation. Firmware flashing, live music or screen effects, and mouse-event macros remain open.
 
 ## Build from source

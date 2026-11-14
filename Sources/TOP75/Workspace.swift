@@ -145,8 +145,10 @@ struct WorkspaceView: View {
     private let transfer = WorkspaceTransfer.shared
     private let battery = BatteryMonitor.shared
     @State private var connected = false
-    @State private var bluetoothDetected = false
+    @State private var bluetoothConnection: KeyboardConnection?
     @State private var connection: KeyboardConnection?
+
+    private var bluetoothDetected: Bool { bluetoothConnection != nil }
 
     private var selection: Binding<WorkspacePage?> {
         Binding(get: { storedPage }, set: { if let page = $0 { storedPage = page } })
@@ -187,14 +189,14 @@ struct WorkspaceView: View {
                         }
                         if let percent = battery.percent {
                             Label {
-                                Text(Double(percent) / 100, format: .percent).monospacedDigit()
+                                Text(Double(percent) / 100, format: .percent.locale(Locale(identifier: l.code))).monospacedDigit()
                             } icon: {
                                 Image(systemName: battery.isLow ? "battery.25percent" : "battery.75percent")
                             }
                             .font(.caption)
                             .foregroundStyle(battery.isLow ? Color.orange : Color.secondary)
                             .accessibilityLabel(l("Pil seviyesi"))
-                            .accessibilityValue((Double(percent) / 100).formatted(.percent))
+                            .accessibilityValue((Double(percent) / 100).formatted(.percent.locale(Locale(identifier: l.code))))
                         }
                         if bluetoothDetected && connection == nil {
                             Button(l("Bluetooth erişimine izin ver"), action: allowBluetoothAccess)
@@ -297,6 +299,7 @@ struct WorkspaceView: View {
 
     private var connectionStatus: String {
         if connected { return "USB bağlı" }
+        if bluetoothConnection == .bluetoothLowEnergy { return "Bluetooth 5.0 bağlı" }
         if bluetoothDetected { return "Bluetooth bağlı" }
         if battery.receiverOnline { return "2,4 GHz bağlı" }
         return "Klavye bağlantısı yok"
@@ -304,10 +307,9 @@ struct WorkspaceView: View {
 
     private func refreshConnection() {
         let usb = Keyboard.hasUSBInterface()
-        let bluetooth = !usb && BluetoothKeyboard.isConnected()
         connected = usb
-        bluetoothDetected = bluetooth
-        connection = usb ? .usb : bluetooth && BluetoothKeyboard.hasAccess ? .bluetooth : nil
+        bluetoothConnection = usb ? nil : BluetoothKeyboard.detectedConnection()
+        connection = usb ? .usb : BluetoothKeyboard.hasAccess ? bluetoothConnection : nil
     }
 
     private func allowBluetoothAccess() {

@@ -7,21 +7,29 @@ enum BluetoothKeyboard {
     private static let commandMarker: UInt8 = 0x55
     private static let packetSize = 66
 
-    private static func matchingDevice(in manager: IOHIDManager) -> IOHIDDevice? {
+    private static func matchingDevice(in manager: IOHIDManager, connection: KeyboardConnection) -> IOHIDDevice? {
+        let ble = connection == .bluetoothLowEnergy
+        let name = ble ? "TOP75 BT5.0" : "TOP75 BT3.0"
         IOHIDManagerSetDeviceMatching(manager, [
             kIOHIDVendorIDKey: 0x3151,
-            kIOHIDProductIDKey: 0x4012,
-            kIOHIDTransportKey: "Bluetooth"
+            kIOHIDProductIDKey: ble ? 0x4013 : 0x4012,
+            kIOHIDTransportKey: ble ? "Bluetooth Low Energy" : "Bluetooth"
         ] as CFDictionary)
         guard let devices = IOHIDManagerCopyDevices(manager) as? Set<IOHIDDevice>,
               devices.count == 1, let device = devices.first,
-              IOHIDDeviceGetProperty(device, kIOHIDProductKey as CFString) as? String == "TOP75 BT3.0"
+              let product = IOHIDDeviceGetProperty(device, kIOHIDProductKey as CFString) as? String,
+              product.trimmingCharacters(in: .whitespacesAndNewlines) == name
         else { return nil }
         return device
     }
 
-    static func isConnected() -> Bool {
-        matchingDevice(in: IOHIDManagerCreate(kCFAllocatorDefault, 0)) != nil
+    static func isConnected(_ connection: KeyboardConnection) -> Bool {
+        matchingDevice(in: IOHIDManagerCreate(kCFAllocatorDefault, 0), connection: connection) != nil
+    }
+
+    static func detectedConnection() -> KeyboardConnection? {
+        if isConnected(.bluetoothLowEnergy) { return .bluetoothLowEnergy }
+        return isConnected(.bluetooth) ? .bluetooth : nil
     }
 
     static var hasAccess: Bool {
@@ -42,14 +50,14 @@ enum BluetoothKeyboard {
         return Array(report.dropFirst(2))
     }
 
-    static func withAccess<T>(_ operation: (KeyboardAccess) throws -> T) throws -> T {
+    static func withAccess<T>(connection: KeyboardConnection, _ operation: (KeyboardAccess) throws -> T) throws -> T {
         let manager = IOHIDManagerCreate(kCFAllocatorDefault, 0)
-        guard let device = matchingDevice(in: manager) else { throw KeyboardError.missingBluetooth }
+        guard let device = matchingDevice(in: manager, connection: connection) else { throw KeyboardError.missingBluetooth }
         let session = try Session(device)
         defer { withExtendedLifetime(manager) {} }
 
         return try operation(KeyboardAccess(
-            deviceIdentifier: Keyboard.deviceIdentifier(device, connection: .bluetooth),
+            deviceIdentifier: Keyboard.deviceIdentifier(device, connection: connection),
             requestReport: { opcode, parameters, checkEcho, _ in try session.request(opcode, parameters, checkEcho) },
             sendReport: session.send
         ))
