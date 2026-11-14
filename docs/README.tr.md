@@ -41,6 +41,8 @@ Evet. **TOP75 BT5.0** veya **TOP75 BT3.0** ile eşleş, **Giriş İzleme** iznin
 - **Uygulamaya göre profil.** Cihaz ayarlarından uygulama ekle ve profil seç. Kuralsız uygulamalar için varsayılan profili belirle. Elle profil seçimi, ön plandaki uygulama değişene kadar geçerlidir.
 - **Makro yedeği.** Yeni JSON yedeği 50 makro yuvasını içerir. Geri yükleme önizlemesinden istediğin yuvaları seçebilirsin. Eski JSON dosyaları açılabilir.
 
+Tam yedek 50 yuvayı okur. 2,4 GHz bağlantısı dışa aktarım sırasında kesilirse yedeği USB kablosuyla al.
+
 ## Ekran görüntüleri
 
 **Aydınlatma**

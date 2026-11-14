@@ -52,3 +52,5 @@ The tested TOP75 BT5.0 unit used VID `0x3151`, PID `0x4013` and vendor report ID
 ## 2.4 GHz configuration
 
 Settings use the same command and payload formats as USB, wrapped by the receiver relay. Before sending, check `0xF7` for an online keyboard and a ready receiver, then select its keyboard target with `F6 0A`. Poll `F7` before fetching the requested response with `FC`. On the tested receiver, the ready flag sometimes returned to 1 without the reply flag being set. Serializing battery polls and configuration transactions keeps status reads out of in-flight requests. Screen transfers remain wired.
+
+Bulk replies have no opcode or page index. The receiver path compares two reads before accepting each page. A full export is longer over the receiver and fails if the keyboard stops responding.

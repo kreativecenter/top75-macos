@@ -53,6 +53,8 @@ Connect the keyboard with a USB data cable and select **Display**. Drop in a GIF
 - **App-specific profiles.** Add apps in **Device Settings → App-specific profiles** and choose the profile each one should use. Choose a default for other apps. Switching profiles manually overrides the current app rule until you switch apps.
 - **Macro backup.** New JSON backups include all 50 macro slots. In the restore preview, choose the macro slots to write. Versions 1 and 2 can still be opened. Macros with events the app cannot encode are listed separately.
 
+A complete backup reads all 50 slots. Use USB for a large backup if the 2.4 GHz connection drops while exporting.
+
 ## Screenshots
 
 **Lighting**

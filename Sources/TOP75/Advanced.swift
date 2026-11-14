@@ -195,7 +195,8 @@ extension Keyboard {
         let functions = try readFunctionLayers(device, active: active, firmware: firmware)
         var macros: [UInt8: Data] = [:]
         for slot in macroSlots.sorted() {
-            macros[slot] = Data(try readMacro(device, slot: slot))
+            if let bytes = try? readMacro(device, slot: slot) { macros[slot] = Data(bytes) }
+            else { macros[slot] = Data(try readMacro(device, slot: slot)) }
         }
         return SettingsSnapshot(
             formatVersion: macroSlots.isEmpty ? 2 : 3, device: SettingsSnapshot.model, recordedAt: Date(), activeProfile: active,

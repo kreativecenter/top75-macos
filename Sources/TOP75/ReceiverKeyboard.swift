@@ -87,19 +87,25 @@ enum ReceiverKeyboard {
         }
 
         func request(_ opcode: UInt8, _ parameters: [UInt8], _ echo: Bool) throws -> [UInt8] {
-            for _ in 0..<3 {
+            var previousPage: [UInt8]?
+            for _ in 0..<(echo ? 3 : 5) {
                 try send(Keyboard.report([opcode] + parameters, checksumIndex: 7))
                 var observedBusy = false
                 for attempt in 0..<12 {
                     let state = try status()
                     guard Status(reply: state)?.online == true else { throw KeyboardError.missingReceiver }
                     if state[5] == 0 { observedBusy = true }
-                    // This receiver can finish a request without setting the reply flag.
                     guard state[0] == 1 || (state[5] == 1 && (observedBusy || attempt >= 2)) else { continue }
-                    // Give the receiver time to finish copying the relay buffer before releasing it.
+                    // The completion flags can lead the relay buffer write.
                     Thread.sleep(forTimeInterval: 0.08)
                     let reply = try local([0xFC])
-                    if !echo || reply[0] == opcode { return reply }
+                    if echo {
+                        if reply[0] == opcode { return reply }
+                    } else {
+                        // Bulk pages have no opcode or page number. Require two identical reads.
+                        if reply == previousPage { return reply }
+                        previousPage = reply
+                    }
                     break
                 }
             }
