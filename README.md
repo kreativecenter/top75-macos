@@ -28,6 +28,10 @@ Pair **TOP75 BT3.0** with your Mac and open TOP75. Click **Allow Bluetooth acces
 
 In the **Schedule** sidebar panel, choose a daily start and end time, such as 23:00–08:00. TOP75 turns the keyboard lighting off and brings back the previous effect when the interval ends. Close the window to keep the app running, or enable **Start TOP75 at login** to start it automatically. **Skip this interval** brings the lighting back early. The keyboard needs an active USB or Bluetooth connection for TOP75 to apply the change.
 
+### Check the keyboard battery
+
+When the verified TOP75 is online through its **2.4 GHz USB receiver**, the sidebar shows the connection and reported battery percentage. In **Device Settings → Battery and charging**, turn on **Low battery notification** and allow the macOS prompt. TOP75 must be running to alert you at 20% or below. The keyboard display shows charging activity. Use USB or Bluetooth to change keyboard settings.
+
 ## Frequently asked questions
 
 ### Can I change the TOP75 RGB lighting over Bluetooth on Mac?

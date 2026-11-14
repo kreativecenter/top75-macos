@@ -38,7 +38,7 @@ struct Entry: Identifiable, Hashable {
         Entry(title: "Profil seçimi ve adlandırma", group: "Tuşlar ve profiller", shortcut: "", detail: "Üç cihaz profili arasında geçiş yap ve profillere bu Mac’te ad ver.", keywords: "profile name rename"),
         Entry(title: "Makro düzenleme ve önizleme", group: "Makrolar", shortcut: "", detail: "Tuş olaylarını sırala, gecikmelerini düzenle ve zaman çizelgesini önizle.", keywords: "macro keyboard events timeline preview"),
         Entry(title: "Ayar kaydını geri yükleme", group: "Cihaz ayarları", shortcut: "", detail: "Bir TOP75 JSON ayar kaydını aç, klavyedeki ayarlarla karşılaştır ve geri yüklemek istediğin farkları seç.", keywords: "restore backup json import export snapshot"),
-        Entry(title: "Pil ve şarj", group: "Sistem", shortcut: "", detail: "Pil simgesi kırmızıysa klavyeyi şarj et. Kablo bağlıyken ekrandaki pil animasyonu şarj durumunu gösterir.", keywords: "batarya battery charge")
+        Entry(title: "Pil ve şarj", group: "Cihaz ayarları", shortcut: "", detail: "Pil simgesi kırmızıysa klavyeyi şarj et. Kablo bağlıyken ekrandaki pil animasyonu şarj durumunu gösterir.", keywords: "batarya battery charge")
     ]
 
     static func search(_ query: String, language: AppLanguage = AppLanguage(code: "tr")) -> [Entry] {
@@ -208,6 +208,7 @@ enum Launch {
             precondition(english("Geri yükleme önizlemesi") == "Restore preview")
             Verification.verifyBluetoothKeyboard()
             Verification.verifyLightingSchedule()
+            Verification.verifyReceiverBattery()
             try! Verification.verifyRestore()
             try! Verification.verifyArtwork()
             print("Localization, guide, layout, USB and Bluetooth HID, macro, restore and GIF/RGB565 checks passed.")
@@ -226,6 +227,7 @@ struct TOP75App: App {
 
     init() {
         LightingScheduler.shared.start()
+        BatteryMonitor.shared.start()
     }
 
     var body: some Scene {

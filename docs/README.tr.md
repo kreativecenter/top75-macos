@@ -20,6 +20,10 @@ Mac’te **TOP75 BT3.0** ile eşleş ve TOP75’i aç. Kenar çubuğunda **Bluet
 
 Kenar çubuğundaki **Zamanlama** panelinde günlük başlangıç ve bitiş saatlerini seç. Örneğin 23.00–08.00 arasında klavyenin ışığı kapanır ve 08.00’de önceki efekt geri gelir. Pencere kapalıyken uygulama çalışmaya devam eder. İstersen **Oturum açınca TOP75’i başlat** seçeneğini aç. Işığı erkenden geri getirmek için **Bu aralığı atla** düğmesini kullan. Uygulamanın değişikliği yapabilmesi için klavyenin USB veya Bluetooth ile bağlı olması gerekir.
 
+### Klavyenin pil seviyesine bak
+
+TOP75, **2,4 GHz USB alıcısı** üzerinden bağlıyken kenar çubuğunda bağlantı ve pil yüzdesi görünür. **Cihaz ayarları → Pil ve şarj** bölümünden **Düşük pil bildirimi**ni aç ve macOS bildirim iznini ver. TOP75 çalışırken pil %20 veya altındaysa uyarı alırsın. Şarj animasyonu klavyenin ekranında görünür. Klavye ayarlarını değiştirmek için USB veya Bluetooth kullan.
+
 ## Sık sorulan sorular
 
 ### TOP75’in RGB ışığını Mac’te Bluetooth üzerinden değiştirebilir miyim?

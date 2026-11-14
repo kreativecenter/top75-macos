@@ -188,6 +188,7 @@ struct DeviceOptionsView: View {
 
     var body: some View {
         Form {
+            BatteryStatusView()
             Section(l("Tuş tepkisi")) {
                 Stepper(l.format("Debounce · %@ ms", String(draft.debounce)), value: $draft.debounce, in: 0...10)
                 Toggle(l("İşletim sistemini otomatik algıla"), isOn: $draft.automaticOS)

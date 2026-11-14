@@ -143,6 +143,7 @@ struct WorkspaceView: View {
     @State private var guideFocus = 0
     @State private var connectionHelp = 0
     private let transfer = WorkspaceTransfer.shared
+    private let battery = BatteryMonitor.shared
     @State private var connected = false
     @State private var bluetoothDetected = false
     @State private var connection: KeyboardConnection?
@@ -177,18 +178,29 @@ struct WorkspaceView: View {
                     VStack(alignment: .leading, spacing: 3) {
                         Text("Darmoshark TOP75").font(.subheadline.weight(.semibold))
                         HStack(spacing: 5) {
-                            Circle().fill(connected || bluetoothDetected ? Color.green : Color.secondary)
+                            Circle().fill(connected || bluetoothDetected || battery.receiverOnline ? Color.green : Color.secondary)
                                 .frame(width: 6, height: 6)
                                 .accessibilityHidden(true)
                             Text(l(connectionStatus))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
+                        if let percent = battery.percent {
+                            Label {
+                                Text(Double(percent) / 100, format: .percent).monospacedDigit()
+                            } icon: {
+                                Image(systemName: battery.isLow ? "battery.25percent" : "battery.75percent")
+                            }
+                            .font(.caption)
+                            .foregroundStyle(battery.isLow ? Color.orange : Color.secondary)
+                            .accessibilityLabel(l("Pil seviyesi"))
+                            .accessibilityValue((Double(percent) / 100).formatted(.percent))
+                        }
                         if bluetoothDetected && connection == nil {
                             Button(l("Bluetooth erişimine izin ver"), action: allowBluetoothAccess)
                                 .buttonStyle(.link)
                                 .font(.caption)
-                        } else if !connected && !bluetoothDetected {
+                        } else if !connected && !bluetoothDetected && !battery.receiverOnline {
                             Button(l("Bağlantı yardımı")) {
                                 storedPage = .guide
                                 connectionHelp += 1
@@ -208,7 +220,11 @@ struct WorkspaceView: View {
                     Text(l(storedPage.title)).font(.largeTitle.bold())
                         .accessibilityAddTraits(.isHeader)
                     Text(l(storedPage.subtitle)).foregroundStyle(.secondary)
-                    if bluetoothDetected && storedPage == .display {
+                    if battery.receiverOnline && !bluetoothDetected && !connected && storedPage != .guide {
+                        Label(l("Klavye ayarları için USB veya Bluetooth ile bağlan."), systemImage: "info.circle")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                    } else if bluetoothDetected && storedPage == .display {
                         Label(l("Bu bölüm için USB bağlantısı gerekli."), systemImage: "cable.connector")
                             .font(.callout)
                             .foregroundStyle(.secondary)
@@ -282,6 +298,7 @@ struct WorkspaceView: View {
     private var connectionStatus: String {
         if connected { return "USB bağlı" }
         if bluetoothDetected { return "Bluetooth bağlı" }
+        if battery.receiverOnline { return "2,4 GHz bağlı" }
         return "Klavye bağlantısı yok"
     }
 

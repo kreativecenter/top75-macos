@@ -13,6 +13,32 @@ enum Verification {
         precondition(event.withUnsafeBufferPointer { BluetoothKeyboard.payload(report: $0, id: 6) } == nil)
     }
 
+    static func verifyReceiverBattery() {
+        var reply: [UInt8] = [0, 3, 0, 0, 1, 1, 1, 0x70]
+        reply += Array(repeating: 0, count: 56)
+        precondition(ReceiverBattery.Status(reply: reply)?.percent == 3)
+        reply[3] = 1
+        precondition(ReceiverBattery.Status(reply: reply)?.online == false)
+        precondition(ReceiverBattery.Status(reply: reply)?.percent == nil)
+        reply[3] = 0
+        for invalid: UInt8 in [0, 101, 255] {
+            reply[1] = invalid
+            precondition(ReceiverBattery.Status(reply: reply)?.percent == nil)
+        }
+        precondition(ReceiverBattery.Status(reply: Array(reply.prefix(8))) == nil)
+        reply[6] = 0
+        precondition(ReceiverBattery.Status(reply: reply) == nil)
+
+        var warning = LowBatteryWarning(notified: false)
+        precondition(warning.shouldNotify(percent: 20))
+        warning.didNotify()
+        precondition(!warning.shouldNotify(percent: 3))
+        precondition(!warning.shouldNotify(percent: 23))
+        precondition(!warning.shouldNotify(percent: 20))
+        precondition(!warning.shouldNotify(percent: 25))
+        precondition(warning.shouldNotify(percent: 20))
+    }
+
     static func verifyLightingSchedule() {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "Europe/Istanbul")!

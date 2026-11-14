@@ -327,3 +327,13 @@
 "Klavye ışığının kapalı kalacağı saatleri seç." = "Choose when to turn off the keyboard lights.";
 "GitHub’da TOP75" = "TOP75 on GitHub";
 "X’te %@" = "%@ on X";
+"Pil seviyesi" = "Battery level";
+"Pil bilgisi alınamadı" = "Battery level unavailable";
+"TOP75 pili azaldı" = "TOP75 battery is low";
+"Klavye pili %@. Şarj kablosunu bağla." = "Keyboard battery is at %@. Connect the charging cable.";
+"Düşük pil bildirimi" = "Low battery notification";
+"TOP75 açıkken pil %20’ye düştüğünde macOS bildirimi al." = "Get a macOS notification at 20% while TOP75 is running.";
+"Bildirim ayarlarını aç" = "Open Notification Settings";
+"Pil yüzdesi 2,4 GHz bağlantısında okunur. Şarj durumunu klavyenin kendi ekranından kontrol et." = "Battery level is available over 2.4 GHz. Check the built-in keyboard display to see whether it is charging.";
+"2,4 GHz bağlı" = "2.4 GHz connected";
+"Klavye ayarları için USB veya Bluetooth ile bağlan." = "Connect over USB or Bluetooth to edit keyboard settings.";

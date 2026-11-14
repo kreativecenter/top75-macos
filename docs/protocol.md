@@ -36,3 +36,11 @@ The paired TOP75 BT3.0 reports VID `0x3151`, PID `0x4012` and vendor report ID 6
 On firmware 274, the app read back and reverted a two-key color batch and a global brightness change over Bluetooth. macOS requires Input Monitoring permission to open this keyboard interface.
 
 Firmware 274 also verified writes and rollback for active profile selection, a short macro in an empty slot, and selective JSON restore of Base and Fn assignments, debounce and a sleep timer. The daily schedule turned the lights off over Bluetooth and restored the exact prior settings both at the end time and when skipping an interval. Display firmware responded to a read, and artwork uploads use the verified wired path.
+
+## 2.4 GHz receiver and battery
+
+The TOP75 receiver exposes USB VID `0x3151`, PID `0x4011`, usage page `0xFFFF` and usage `2`. The app checks the receiver's `0xF7` status and confirms ID 957 with a relayed `0x8F` query before reporting the connection. Later polls read the receiver's status cache only. A zero in byte 3 means the keyboard is online, and byte 1 supplies the battery level. An offline reply or an empty cache cannot trigger an alert.
+
+The connected sample reported `00 03 00 00 01 01 01 00` at low charge. After the keyboard went offline, byte 3 changed to `01` while the old level remained cached. The receiver's status does not establish whether the battery is charging. On TOP75 BT3.0, macOS exposed no battery percentage and the Bluetooth HID configuration replies did not identify a usable battery command. The keyboard's built-in display remains the reference for charging.
+
+See the [sharkfin receiver exchange and status fields](https://github.com/dniminenn/sharkfin/blob/master/docs/PROTOCOL.md#24-ghz-receiver) for the underlying receiver format.
