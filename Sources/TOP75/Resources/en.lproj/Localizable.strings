@@ -468,3 +468,8 @@
 "Claude Code status line ayarı desteklenen komut biçiminde değil." = "Claude Code’s status line is not a supported command.";
 "Claude Code ayarları değişti. Tekrar dene." = "Claude Code settings changed. Try again.";
 "Codex ve Claude’un kalan kullanımını klavye ekranına gönder." = "Send remaining Codex and Claude usage to the keyboard display.";
+"Kullanılan" = "Used";
+"Kalan" = "Remaining";
+"Limit gösterimi" = "Limit display";
+"%@ kullanıldı" = "%@ used";
+"%@ kaldı" = "%@ remaining";

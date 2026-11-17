@@ -1,14 +1,40 @@
 import CoreText
 import SwiftUI
 
+enum UsageMetric: String, CaseIterable, Sendable {
+    case used, remaining
+
+    var title: String { self == .used ? "Kullanılan" : "Kalan" }
+
+    func percent(_ window: UsageLimits.Window) -> Double {
+        self == .used ? window.usedPercentage : 100 - window.usedPercentage
+    }
+
+    func displayNumber(_ window: UsageLimits.Window?) -> Int? {
+        // A partially consumed window should not look full unless the source reports 100%.
+        window.map { Int(percent($0).rounded(.down)) }
+    }
+
+    func approachesLimit(_ number: Int) -> Bool {
+        self == .used ? number >= 90 : number <= 10
+    }
+
+    func header(weekly: Bool, turkish: Bool) -> String {
+        let period = turkish ? (weekly ? "7G" : "5S") : (weekly ? "7D" : "5H")
+        let metric = turkish ? (self == .used ? "DOLU" : "KALAN") : (self == .used ? "USED" : "LEFT")
+        return "\(period) \(metric)"
+    }
+}
+
 struct UsageLCD: Equatable, Sendable {
     let codex: UsageLimits
     let claude: UsageLimits
+    var metric = UsageMetric.used
 
     var hasLimits: Bool { !codex.isEmpty || !claude.isEmpty }
 
     var numbers: [Int?] {
-        [codex.fiveHour?.remaining, codex.weekly?.remaining, claude.fiveHour?.remaining, claude.weekly?.remaining]
+        [codex.fiveHour, codex.weekly, claude.fiveHour, claude.weekly].map(metric.displayNumber)
     }
 
     func artwork(turkish: Bool = false) throws -> ScreenArtwork {
@@ -35,21 +61,21 @@ struct UsageLCD: Equatable, Sendable {
                  size: 16, color: value == nil ? 0x758094 : 0xF4F7FB)
             fill(0x27344A, x: x, y: baseline - 9, w: 47, h: 3)
             if let value, value > 0 {
-                fill(value <= 10 ? 0xFF756C : accent, x: x, y: baseline - 9, w: max(1, value * 47 / 100), h: 3)
+                fill(metric.approachesLimit(value) ? 0xFF756C : accent, x: x, y: baseline - 9, w: max(1, value * 47 / 100), h: 3)
             }
         }
 
         fill(0x101827, x: 0, y: 0, w: 128, h: 128)
         fill(0x1F2C40, x: 0, y: 108, w: 128, h: 20)
-        text(turkish ? "5S KALAN" : "5H LEFT", x: 9, y: 114, size: 9, color: 0xD5DEEB)
-        text(turkish ? "7G KALAN" : "7D LEFT", x: 70, y: 114, size: 9, color: 0xD5DEEB)
+        text(metric.header(weekly: false, turkish: turkish), x: 9, y: 114, size: 9, color: 0xD5DEEB)
+        text(metric.header(weekly: true, turkish: turkish), x: 70, y: 114, size: 9, color: 0xD5DEEB)
         text("CODEX", x: 10, y: 90, size: 11, color: 0x77E4BA)
-        percentage(codex.fiveHour?.remaining, x: 10, baseline: 70, accent: 0x77E4BA)
-        percentage(codex.weekly?.remaining, x: 70, baseline: 70, accent: 0x77E4BA)
+        percentage(metric.displayNumber(codex.fiveHour), x: 10, baseline: 70, accent: 0x77E4BA)
+        percentage(metric.displayNumber(codex.weekly), x: 70, baseline: 70, accent: 0x77E4BA)
         fill(0x263549, x: 9, y: 55, w: 110, h: 1)
         text("CLAUDE", x: 10, y: 39, size: 11, color: 0xFFB586)
-        percentage(claude.fiveHour?.remaining, x: 10, baseline: 19, accent: 0xFFB586)
-        percentage(claude.weekly?.remaining, x: 70, baseline: 19, accent: 0xFFB586)
+        percentage(metric.displayNumber(claude.fiveHour), x: 10, baseline: 19, accent: 0xFFB586)
+        percentage(metric.displayNumber(claude.weekly), x: 70, baseline: 19, accent: 0xFFB586)
         guard let image = context.makeImage() else { throw ScreenError.invalidFile }
         return try ScreenArtwork(still: image)
     }
@@ -70,6 +96,13 @@ struct UsageLimitSection: View {
         var id: Self { self }
     }
 
+    private struct SentCard: Equatable {
+        let numbers: [Int?]
+        let metric: UsageMetric
+        let language: String
+    }
+
+    @AppStorage("usageDisplayMetric") private var metric = UsageMetric.used
     @State private var codex = UsageLimits()
     @State private var claude: ClaudeUsage.Reading?
     @State private var bridgeEnabled = false
@@ -78,11 +111,12 @@ struct UsageLimitSection: View {
     @State private var refreshing = false
     @State private var autoUpdate = false
     @State private var slot: UInt8?
-    @State private var sentNumbers: [Int?]?
+    @State private var sentCard: SentCard?
     @State private var codexMessage = ""
     @State private var status = ""
 
-    private var card: UsageLCD { UsageLCD(codex: codex, claude: claude?.limits ?? UsageLimits()) }
+    private var card: UsageLCD { UsageLCD(codex: codex, claude: claude?.limits ?? UsageLimits(), metric: metric) }
+    private var cardStamp: SentCard { SentCard(numbers: card.numbers, metric: metric, language: l.code) }
 
     var body: some View {
         controls
@@ -91,15 +125,20 @@ struct UsageLimitSection: View {
                 claude = bridgeEnabled ? ClaudeUsage.read() : nil
                 preparePreview()
             }
-            .onChange(of: connected) { sentNumbers = nil }
-            .onChange(of: slot) { sentNumbers = nil }
+            .onChange(of: connected) { sentCard = nil }
+            .onChange(of: slot) { sentCard = nil }
             .onChange(of: l.code) { preparePreview() }
+            .onChange(of: metric) { preparePreview() }
             .task(id: autoUpdate && connected ? slot : nil, autoRefresh)
             .alert(item: $confirmation, content: alert)
     }
 
     private var controls: some View {
         Section(l("Codex ve Claude limitleri")) {
+            Picker(l("Limit gösterimi"), selection: $metric) {
+                ForEach(UsageMetric.allCases, id: \.self) { Text(l($0.title)).tag($0) }
+            }
+            .pickerStyle(.segmented)
             HStack(alignment: .top, spacing: 18) {
                 if let image = artwork?.previews.first {
                     Image(decorative: image, scale: 1)
@@ -152,7 +191,7 @@ struct UsageLimitSection: View {
         guard autoUpdate, connected, slot != nil else { return }
         while !Task.isCancelled {
             await refresh()
-            if !Task.isCancelled, autoUpdate, sentNumbers != card.numbers { await upload() }
+            if !Task.isCancelled, autoUpdate, sentCard != cardStamp { await upload() }
             do { try await Task.sleep(for: .seconds(15 * 60)) }
             catch { return }
         }
@@ -175,7 +214,7 @@ struct UsageLimitSection: View {
                          message: Text(l.format("Yuva %@ içindeki görsel değişecek.", String(Int(slot ?? 0) + 1))),
                          primaryButton: .default(Text(l(option == .upload ? "Aktar" : "Aç"))) {
                              if option == .upload { Task { await upload() } }
-                             else { sentNumbers = nil; autoUpdate = true }
+                             else { sentCard = nil; autoUpdate = true }
                          },
                          secondaryButton: .cancel())
         }
@@ -202,14 +241,23 @@ struct UsageLimitSection: View {
     private func window(_ title: String, value: UsageLimits.Window?) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(title).font(.caption).foregroundStyle(.secondary)
-            Text(value.map { (Double($0.remaining) / 100).formatted(.percent.locale(Locale(identifier: l.code))) } ?? "—")
+            Text(value.map { formatted(metric, window: $0) } ?? "—")
                 .font(.title3.monospacedDigit())
+            if let value {
+                let other: UsageMetric = metric == .used ? .remaining : .used
+                Text(l.format(other == .used ? "%@ kullanıldı" : "%@ kaldı", formatted(other, window: value)))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             if let date = value?.resetsAt {
                 Text(l.format("Sıfırlanma %@", date.formatted(.dateTime.month(.abbreviated).day().hour().minute().locale(Locale(identifier: l.code)))))
                     .font(.caption2).foregroundStyle(.secondary)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func formatted(_ metric: UsageMetric, window: UsageLimits.Window) -> String {
+        (metric.percent(window) / 100).formatted(.percent.precision(.fractionLength(0...2)).locale(Locale(identifier: l.code)))
     }
 
     private func configureClaude(_ enabled: Bool) {
@@ -225,7 +273,7 @@ struct UsageLimitSection: View {
     }
 
     private func preparePreview() {
-        let show = card.hasLimits || (autoUpdate && sentNumbers != nil)
+        let show = card.hasLimits || (autoUpdate && sentCard != nil)
         artwork = show ? try? card.artwork(turkish: l.code == "tr") : nil
     }
 
@@ -251,7 +299,7 @@ struct UsageLimitSection: View {
     private func upload() async {
         guard connected, let slot, let artwork,
               let id = transfer.start(.display, title: "Limit kartı aktarılıyor") else { return }
-        let numbers = card.numbers
+        let stamp = cardStamp
         defer { transfer.finish(id) }
         do {
             try await Task.detached {
@@ -259,7 +307,7 @@ struct UsageLimitSection: View {
                     Task { @MainActor in transfer.update(id, progress: fraction) }
                 }
             }.value
-            sentNumbers = numbers
+            sentCard = stamp
             status = l.format("Limit kartı %@. yuvaya gönderildi.", String(Int(slot) + 1))
         } catch {
             status = l.message(error)

@@ -201,13 +201,20 @@ enum Verification {
         "secondary":{"usedPercent":25,"windowDurationMins":300,"resetsAt":2000}}}}}
         """.utf8)
         let codex = try CodexUsage.decode(codexJSON, now: now)
-        precondition(codex.fiveHour?.remaining == 75 && codex.weekly?.remaining == 37)
+        precondition(codex.fiveHour?.usedPercentage == 25 && codex.weekly?.usedPercentage == 63)
         let claude = try ClaudeUsage.decode(Data("""
         {"five_hour":{"used_percentage":5,"resets_at":900},"seven_day":{"used_percentage":33.2,"resets_at":5000}}
         """.utf8), now: now)
-        precondition(claude.fiveHour == nil && claude.weekly?.remaining == 66)
-        let card = UsageLCD(codex: codex, claude: claude)
+        precondition(claude.fiveHour == nil && claude.weekly?.usedPercentage == 33.2)
+        let used = UsageLCD(codex: codex, claude: claude)
+        precondition(used.numbers == [25, 63, nil, 33])
+        let card = UsageLCD(codex: codex, claude: claude, metric: .remaining)
         precondition(card.numbers == [75, 37, nil, 66])
+        for (value, remaining) in [(99.0, 1), (100.0, 0)] {
+            let window = UsageLimits.Window(value, reset: nil, now: now)
+            precondition(UsageMetric.used.displayNumber(window) == Int(value))
+            precondition(UsageMetric.remaining.displayNumber(window) == remaining)
+        }
         let artwork = try card.artwork(turkish: true)
         precondition(artwork.previews.first?.width == 128 && artwork.frames.count == 1)
         precondition(Set(artwork.frames[0]).count > 20)

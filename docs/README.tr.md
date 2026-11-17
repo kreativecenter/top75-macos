@@ -27,7 +27,7 @@ Mac’te **TOP75 BT5.0** veya **TOP75 BT3.0** ile eşleş ve TOP75’i aç. Kena
 
 ### Klavyede Codex ve Claude limitlerini göster
 
-**Ekran → Codex ve Claude limitleri** bölümünde yenile. Kart, 5 saatlik ve 7 günlük kalan yüzdeleri gösterir. Codex için ChatGPT hesabına giriş yapılmış yerel Codex CLI kullanılır. **Claude Code’u bağla** düğmesini bir kez kullan, Claude Code’da yeni bir yanıt al ve limitleri yenile. Bağlantıyı kaldırınca önceki status line komutu geri yüklenir.
+**Ekran → Codex ve Claude limitleri** bölümünde yenile. Kart, 5 saatlik ve 7 günlük limit yüzdelerini gösterir. Önizlemenin üstünden **Kullanılan** veya **Kalan** seç. Codex için ChatGPT hesabına giriş yapılmış yerel Codex CLI kullanılır. **Claude Code’u bağla** düğmesini bir kez kullan, Claude Code’da yeni bir yanıt al ve limitleri yenile. Bağlantıyı kaldırınca önceki status line komutu geri yüklenir.
 
 Beş görsel yuvasından birini seçip USB üzerinden aktar. Otomatik mod, TOP75 penceresi açıkken 15 dakikada bir kontrol eder ve ekrandaki yüzdeler değiştiğinde kartı gönderir. Klavye güncellemeler arasında son yüklenen görseli tutar.
 

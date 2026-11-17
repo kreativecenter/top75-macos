@@ -16,7 +16,6 @@ struct UsageLimits: Equatable, Sendable {
             resetsAt = date
         }
 
-        var remaining: Int { Int((100 - usedPercentage).rounded(.down)) }
     }
 
     var fiveHour: Window?
