@@ -40,6 +40,7 @@ struct Entry: Identifiable, Hashable {
         Entry(title: "Makro kaydı, düzenleme ve önizleme", group: "Makrolar", shortcut: "", detail: "TOP75’te tuşlara basarak makro kaydet. Olayları ve gecikmeleri düzenle, önizle ve klavyeye yaz.", keywords: "macro record keyboard events timeline preview"),
         Entry(title: "Tuş testi", group: "Tuş testi", shortcut: "", detail: "Tuşları test et ve bağlantı tanısını kopyala.", keywords: "key tester diagnostics hid bağlantı"),
         Entry(title: "Paylaşılabilir ön ayarlar", group: "Cihaz ayarları", shortcut: "", detail: "Aydınlatma, seçili tuşlar veya tek makroyu ayrı bir dosyayla paylaş.", keywords: "preset export import share json"),
+        Entry(title: "Codex ve Claude limitleri", group: "Ekran", shortcut: "", detail: "Codex ve Claude’un kalan kullanımını klavye ekranına gönder.", keywords: "ai codex claude limits quota usage rate remaining"),
         Entry(title: "Ekran şablonları", group: "Ekran", shortcut: "", detail: "İsim, monogram veya piksel çizimini klavye ekranı için hazırla.", keywords: "template pixel art tft lcd"),
         Entry(title: "Ayar kaydını geri yükleme", group: "Cihaz ayarları", shortcut: "", detail: "Bir TOP75 JSON ayar kaydını aç, klavyedeki ayarlarla karşılaştır ve geri yüklemek istediğin farkları seç.", keywords: "restore backup json import export snapshot"),
         Entry(title: "Pil ve şarj", group: "Cihaz ayarları", shortcut: "", detail: "Pil simgesi kırmızıysa klavyeyi şarj et. Kablo bağlıyken ekrandaki pil animasyonu şarj durumunu gösterir.", keywords: "batarya battery charge")
@@ -217,6 +218,7 @@ enum Launch {
             try! Verification.verifyRestore()
             try! Verification.verifyArtwork()
             try! Verification.verifyKeyboardTools()
+            try! Verification.verifyUsageLimits()
             precondition(english("Tuş testi") == "Key Test")
             precondition(Entry.search("key tester", language: english).first?.destination == .test)
             print("Localization, guide, keyboard tools, USB and Bluetooth HID, macro, restore, and artwork checks passed.")

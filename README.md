@@ -36,6 +36,12 @@ In **Device Settings → Shareable presets**, export the current lighting, selec
 
 In **Display → Display templates**, design a name, a monogram, or 16 × 16 pixel art. Preview the 128 × 128 result and connect over USB to upload it to a still-image slot.
 
+### Show Codex and Claude limits on the keyboard
+
+Open **Display → Codex & Claude limits** and refresh. The card shows the remaining 5-hour and 7-day percentages. Codex uses the locally installed CLI signed in to ChatGPT. Use **Connect Claude Code** once for the standard Claude Code settings, then get a new response in Claude Code and refresh. Disconnect in TOP75 to restore the prior status-line command.
+
+Choose one of the five still-image slots and upload over USB. Automatic mode checks every 15 minutes while the TOP75 window is open and sends a card when its displayed percentages change. The keyboard keeps the last uploaded image between updates.
+
 ### Use macOS Shortcuts
 
 Find **Set TOP75 Lighting** and **Select TOP75 Profile** in Shortcuts. The actions open TOP75 and apply a verified change over the keyboard’s active settings connection.

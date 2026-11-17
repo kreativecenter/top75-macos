@@ -193,6 +193,26 @@ enum Verification {
         }
     }
 
+    static func verifyUsageLimits() throws {
+        let now = Date(timeIntervalSince1970: 1000)
+        let codexJSON = Data("""
+        {"id":2,"result":{"rateLimits":{"primary":{"usedPercent":99,"windowDurationMins":300}},
+        "rateLimitsByLimitId":{"codex":{"primary":{"usedPercent":63,"windowDurationMins":10080,"resetsAt":5000},
+        "secondary":{"usedPercent":25,"windowDurationMins":300,"resetsAt":2000}}}}}
+        """.utf8)
+        let codex = try CodexUsage.decode(codexJSON, now: now)
+        precondition(codex.fiveHour?.remaining == 75 && codex.weekly?.remaining == 37)
+        let claude = try ClaudeUsage.decode(Data("""
+        {"five_hour":{"used_percentage":5,"resets_at":900},"seven_day":{"used_percentage":33.2,"resets_at":5000}}
+        """.utf8), now: now)
+        precondition(claude.fiveHour == nil && claude.weekly?.remaining == 66)
+        let card = UsageLCD(codex: codex, claude: claude)
+        precondition(card.numbers == [75, 37, nil, 66])
+        let artwork = try card.artwork(turkish: true)
+        precondition(artwork.previews.first?.width == 128 && artwork.frames.count == 1)
+        precondition(Set(artwork.frames[0]).count > 20)
+    }
+
     static func verifyArtwork() throws {
         let data = NSMutableData()
         let destination = CGImageDestinationCreateWithData(data, "com.compuserve.gif" as CFString, 2, nil)!

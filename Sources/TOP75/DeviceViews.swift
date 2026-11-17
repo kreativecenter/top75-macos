@@ -659,6 +659,7 @@ struct ScreenView: View {
                 }
                 if !action.status.isEmpty { Text(l(action.status)).foregroundStyle(.secondary) }
             }
+            UsageLimitSection(connected: connected, transfer: transfer)
         }
         .formStyle(.grouped)
         .task(id: playing && isActive ? artwork?.delay : nil) {
