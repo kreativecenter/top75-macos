@@ -59,7 +59,7 @@ extension EnvironmentValues {
 }
 
 enum WorkspacePage: String, CaseIterable, Identifiable {
-    case lighting, schedule, keys, macros, display, device, guide
+    case lighting, schedule, keys, macros, display, device, test, guide
 
     var id: Self { self }
 
@@ -71,6 +71,7 @@ enum WorkspacePage: String, CaseIterable, Identifiable {
         case .macros: "Makrolar"
         case .display: "Ekran"
         case .device: "Cihaz ayarları"
+        case .test: "Tuş testi"
         case .guide: "Kılavuz"
         }
     }
@@ -83,6 +84,7 @@ enum WorkspacePage: String, CaseIterable, Identifiable {
         case .macros: "command"
         case .display: "display"
         case .device: "gearshape"
+        case .test: "stethoscope"
         case .guide: "book"
         }
     }
@@ -95,6 +97,7 @@ enum WorkspacePage: String, CaseIterable, Identifiable {
         case .macros: "Tuş vuruşlarını birleştir ve klavyedeki bir yuvaya kaydet."
         case .display: "Klavye ekranına bir fotoğraf veya animasyon yükle."
         case .device: "Tuş tepkisini, kablosuz uyku sürelerini ve ayar kayıtlarını yönet."
+        case .test: "Tuş olaylarını ve klavyenin ayar bağlantısını kontrol et."
         case .guide: "TOP75 kısayollarını ve bağlantı adımlarını ara."
         }
     }
@@ -138,6 +141,7 @@ final class WorkspaceTransfer {
 struct WorkspaceView: View {
     @Environment(\.appLanguage) private var l
     @Environment(\.openSettings) private var openSettings
+    @Environment(\.openWindow) private var openWindow
     @SceneStorage("workspace.page") private var storedPage = WorkspacePage.lighting
     @State private var mountedPages: Set<WorkspacePage> = []
     @State private var guideFocus = 0
@@ -166,6 +170,7 @@ struct WorkspaceView: View {
                 }
                 Section(l("Cihaz")) {
                     sidebarRow(.device)
+                    sidebarRow(.test)
                     sidebarRow(.guide)
                 }
             }
@@ -270,6 +275,9 @@ struct WorkspaceView: View {
             .navigationTitle("TOP75")
             .toolbar {
                 ToolbarItemGroup(placement: .primaryAction) {
+                    Button(l("Tuş haritası"), systemImage: "keyboard") { openWindow(id: "keymap") }
+                        .keyboardShortcut("k", modifiers: [.command, .shift])
+                        .help(l("Tuş haritası"))
                     Button(l("Kılavuzda ara"), systemImage: "magnifyingglass") {
                         storedPage = .guide
                         guideFocus += 1
@@ -339,6 +347,8 @@ struct WorkspaceView: View {
                 .disabled(transfer.isBusy)
         case .display: ScreenView(connected: connected, isActive: storedPage == .display, transfer: transfer)
         case .device: DeviceOptionsView(connection: $connection, transfer: transfer)
+        case .test:
+            KeyboardTestView(connection: connection, isActive: storedPage == .test, requestAccess: allowBluetoothAccess)
         case .guide:
             GuideView(focusRequest: guideFocus, connectionRequest: connectionHelp) { storedPage = $0 }
         }

@@ -22,6 +22,24 @@ Open TOP75. **USB Connected** appears in the sidebar. Read the current setting, 
 
 Pair **TOP75 BT5.0** or **TOP75 BT3.0** with your Mac and open TOP75. Click **Allow Bluetooth access** in the sidebar and enable TOP75 in **System Settings → Privacy & Security → Input Monitoring**. Reopen the app if macOS asks. Use Bluetooth for lighting, profiles, key assignments, macros, and device settings, including JSON backup and restore. Connect over USB to upload display artwork.
 
+### Test keys and review shortcuts
+
+Open **Key Test → Start test** to see the key codes sent by the TOP75, including keys held together and supported media events. The connection diagnostics show the transport, firmware response and battery source. **Copy diagnostics** copies the connection summary.
+
+Open **Keymap** from the toolbar or press **⇧⌘K** to see the active profile’s Base and Fn assignments. Keep the window on top or save both layers as a PDF.
+
+### Record a macro or share a preset
+
+In **Macros**, select and read the destination slot, then choose **Record macro**. Start recording, press the keys, and stop to replace the timeline with the recording. Choose actual delays or the fixed 40 ms interval. Preview before writing the slot.
+
+In **Device Settings → Shareable presets**, export the current lighting, selected Base or Fn assignments, or one macro slot. Open a preset to compare it against the keyboard and select changes. Key presets target the current profile, and the firmware version must match the file.
+
+In **Display → Display templates**, design a name, a monogram, or 16 × 16 pixel art. Preview the 128 × 128 result and connect over USB to upload it to a still-image slot.
+
+### Use macOS Shortcuts
+
+Find **Set TOP75 Lighting** and **Select TOP75 Profile** in Shortcuts. The actions open TOP75 and apply a verified change over the keyboard’s active settings connection.
+
 **English and Türkçe** are available in **TOP75 → Settings** (⌘,). Press **⌘F** to search the in-app guide.
 
 ### Schedule lights off
@@ -96,7 +114,7 @@ Configuration runs locally. The app reads back supported settings after writes a
 
 ## Build from source
 
-With Xcode and Swift 6 installed:
+With Xcode and Swift 6 installed (the application bundle includes macOS Shortcuts metadata):
 
 ```sh
 git clone https://github.com/kreativecenter/top75-macos.git

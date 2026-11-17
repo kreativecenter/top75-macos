@@ -214,6 +214,7 @@ struct DeviceOptionsView: View {
                 .disabled(action.busy)
                 if !action.status.isEmpty { Text(l(action.status)).foregroundStyle(.secondary) }
             }
+            SharedPresetsSection(connection: connection, transfer: transfer, review: { review($0, preset: true) })
             Section(l("Ayar kaydı")) {
                 HStack {
                     Button(l("Ayarları JSON olarak dışa aktar")) { export() }
@@ -278,10 +279,13 @@ struct DeviceOptionsView: View {
         }
     }
 
-    private func review(_ url: URL) {
+    private func review(_ url: URL, preset: Bool = false) {
         guard let transport = connection, let id = transfer.start(.device, title: "Ayarlar karşılaştırılıyor", determinate: false) else { return }
         action.status = ""
         action.perform {
+            if preset {
+                return try Keyboard.reviewPreset(SharedPreset.decode(SettingsSnapshot.readFile(url)), connection: transport)
+            }
             let backup = try SettingsSnapshot.load(from: url)
             return try SnapshotRestorePlan(current: Keyboard.snapshot(connection: transport, macroSlots: Set((backup.macros ?? [:]).keys)), backup: backup)
         } completion: { result in
@@ -364,6 +368,7 @@ struct MacroView: View {
     @Binding var connection: KeyboardConnection?
     private var connected: Bool { connection != nil }
     @State private var playback: Task<Void, Never>?
+    @State private var recording = false
     @State private var held: Set<UInt8> = []
     @State private var playingIndex: Int?
     @State private var slot: UInt8 = 0
@@ -394,6 +399,8 @@ struct MacroView: View {
                     if playback != nil {
                         Button(l("Durdur"), systemImage: "stop.fill", action: stop)
                     }
+                    Button(l("Makro kaydet"), systemImage: "record.circle") { stop(); recording = true }
+                        .disabled(previous == nil || action.busy)
                     Spacer()
                     Text(l.format("%@ olay · %@ ms", String(strokes.count), String(duration)))
                         .foregroundStyle(.secondary)
@@ -422,6 +429,7 @@ struct MacroView: View {
             }
             .disabled(previous == nil || action.busy)
             Section(l("Tuş olayları")) {
+                LabeledContent(l("Kayıt kapasitesi"), value: l.format("%@ / %@ bayt", String(Macro.requiredBytes(strokes)), String(Macro.writableBytes)))
                 if strokes.isEmpty { Text(l("Olay yok")).foregroundStyle(.secondary) }
                 ForEach(strokes.indices, id: \.self) { index in
                     event(index)
@@ -440,12 +448,19 @@ struct MacroView: View {
             }
         }
         .formStyle(.grouped)
+        .sheet(isPresented: $recording) {
+            MacroRecorder(accept: { captured in
+                strokes = captured
+                recording = false
+            }, cancel: { recording = false })
+        }
         .onChange(of: strokes) { stop() }
         .onChange(of: connection) {
             previous = nil
+            recording = false
             action.status = ""
         }
-        .onChange(of: isActive) { if !isActive { stop() } }
+        .onChange(of: isActive) { if !isActive { stop(); recording = false } }
         .onDisappear { stop() }
     }
 
@@ -568,6 +583,7 @@ struct ScreenView: View {
     @State private var playing = false
     @State private var frame = 0
     @State private var choosing = false
+    @State private var editingTemplate = false
     @State private var confirming = false
     @State private var dropping = false
     @State private var slot: UInt8 = 0
@@ -584,7 +600,11 @@ struct ScreenView: View {
                             .font(.largeTitle).foregroundStyle(.secondary)
                     }
                     Text(l("PNG, JPEG veya GIF dosyasını buraya bırak")).foregroundStyle(.secondary)
-                    Button(l("Görsel veya GIF seç")) { choosing = true }.disabled(action.busy)
+                    HStack {
+                        Button(l("Görsel veya GIF seç")) { choosing = true }
+                        Button(l("Ekran şablonları")) { editingTemplate = true }
+                    }
+                    .disabled(action.busy)
                 }
                 .padding(16)
                 .frame(maxWidth: .infinity)
@@ -603,13 +623,15 @@ struct ScreenView: View {
                 } isTargeted: { dropping = $0 && !action.busy }
                 if let artwork {
                     LabeledContent(l("Dosya"), value: fileName)
-                    Picker(l("Yerleşim"), selection: $sizing) {
-                        ForEach(ScreenArtwork.Sizing.allCases, id: \.self) { mode in
-                            Text(l(mode.title)).tag(mode)
+                    if sourceData != nil {
+                        Picker(l("Yerleşim"), selection: $sizing) {
+                            ForEach(ScreenArtwork.Sizing.allCases, id: \.self) { mode in
+                                Text(l(mode.title)).tag(mode)
+                            }
                         }
+                        .pickerStyle(.segmented)
+                        .disabled(action.busy)
                     }
-                    .pickerStyle(.segmented)
-                    .disabled(action.busy)
                     if artwork.frames.count == 1 {
                         Picker(l("Görsel yuvası"), selection: $slot) {
                             ForEach(0..<5) { value in Text(l.format("Yuva %@", String(value + 1))).tag(UInt8(value)) }
@@ -649,6 +671,17 @@ struct ScreenView: View {
         }
         .onChange(of: sizing) {
             if let sourceData { prepare(fileName) { sourceData } }
+        }
+        .sheet(isPresented: $editingTemplate) {
+            ScreenTemplateEditor(use: { template, name in
+                sourceData = nil
+                artwork = template
+                fileName = name
+                frame = 0
+                playing = false
+                action.status = ""
+                editingTemplate = false
+            }, cancel: { editingTemplate = false })
         }
         .fileImporter(isPresented: $choosing, allowedContentTypes: [.png, .jpeg, .gif]) { result in
             do { open(try result.get()) }

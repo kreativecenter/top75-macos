@@ -19,6 +19,17 @@ struct ScreenArtwork: Sendable {
         try self.init(data: Self.read(url), sizing: sizing)
     }
 
+    init(still: CGImage) throws {
+        try self.init(frame: Self.render(still, sizing: .fit))
+    }
+
+    init(frame: [UInt8]) throws {
+        guard frame.count == Self.side * Self.side * 2 else { throw ScreenError.invalidFile }
+        frames = [frame]
+        previews = [try Self.preview(frame)]
+        delay = 0
+    }
+
     static func read(_ url: URL) throws -> Data {
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }

@@ -1,7 +1,9 @@
 import Foundation
 
 extension SettingsSnapshot {
-    static func load(from url: URL) throws -> Self {
+    static func load(from url: URL) throws -> Self { try decode(readFile(url)) }
+
+    static func readFile(_ url: URL) throws -> Data {
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
         let properties = try url.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
@@ -14,7 +16,7 @@ extension SettingsSnapshot {
         guard let data = try handle.read(upToCount: limit + 1), data.count <= limit else {
             throw SnapshotError.invalidFile
         }
-        return try decode(data)
+        return data
     }
 
     static func decode(_ data: Data) throws -> Self {
@@ -24,10 +26,7 @@ extension SettingsSnapshot {
               [1, 2, 3].contains(snapshot.formatVersion), snapshot.device == model,
               snapshot.hasExpectedShape, snapshot.options.isValid,
               (snapshot.formatVersion == 3) == (snapshot.macros != nil),
-              snapshot.lighting.rgb <= 0xFFFFFF, snapshot.lighting.brightness <= 4,
-              snapshot.lighting.speed <= 4, (snapshot.lighting.flags & 15) <= 8,
-              (snapshot.lighting.flags >> 4) <= 3,
-              (0...19).contains(snapshot.lighting.effect) || snapshot.lighting.effect == 66,
+              snapshot.lighting.isSupported,
               snapshot.keyColors.allSatisfy({ $0 <= 0xFFFFFF }),
               snapshot.formatVersion == 1 || !Keyboard.sharesFnLayer(snapshot.firmware)
                 || snapshot.profiles[1].function == snapshot.profiles[2].function
@@ -132,12 +131,14 @@ struct SnapshotRestorePlan: Sendable {
     let backup: SettingsSnapshot
     let changes: [Item]
     let unsupportedMacros: [UInt8]
+    let presetScope: SharedPreset.Scope?
 
-    init(current: SettingsSnapshot, backup: SettingsSnapshot) throws {
+    init(current: SettingsSnapshot, backup: SettingsSnapshot, presetScope: SharedPreset.Scope? = nil) throws {
         guard current.hasExpectedShape, backup.hasExpectedShape else { throw SnapshotError.invalidFile }
         guard current.firmware == backup.firmware else { throw SnapshotError.differentFirmware }
         self.current = current
         self.backup = backup
+        self.presetScope = presetScope
         var items: [Item] = [.lighting, .debounce, .automaticOS, .activeProfile]
         items += Self.timers.indices.map(Item.timer)
         items += (0..<128).map(Item.color)
@@ -185,7 +186,11 @@ extension Keyboard {
                 if case .macro(let slot) = item { return slot }
                 return nil
             })
-            let observed = try readSnapshot(device, macroSlots: macroSlots)
+            let observed = if let scope = plan.presetScope {
+                try readPresetState(device, scope: scope)
+            } else {
+                try readSnapshot(device, macroSlots: macroSlots)
+            }
             guard observed.firmware == plan.current.firmware, observed.hasExpectedShape,
                   observed.activeProfile == plan.current.activeProfile,
                   !selection.contains(where: { $0.differs(observed, plan.current) })
@@ -208,7 +213,12 @@ extension Keyboard {
                 }
                 for item in plan.changes where selection.contains(item) {
                     guard let target = item.keyTarget else { continue }
-                    let (profile, fn, slot) = target
+                    let (_, fn, slot) = target
+                    let profile = if case .sharedFn = item, observed.activeProfile > 0 {
+                        observed.activeProfile
+                    } else {
+                        target.profile
+                    }
                     if active != profile {
                         attemptedProfileChange = true
                         active = try selectProfile(device, profile: profile)

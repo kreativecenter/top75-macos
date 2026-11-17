@@ -23,6 +23,7 @@ final class BatteryMonitor {
 
     private(set) var receiverOnline = false
     private(set) var percent: Int?
+    private(set) var percentSource: KeyboardConnection?
     private(set) var alertsEnabled = false
     private(set) var authorization = UNAuthorizationStatus.notDetermined
     private(set) var requestingPermission = false
@@ -59,6 +60,7 @@ final class BatteryMonitor {
                         nextBluetoothRead = now + .seconds(30)
                     }
                     percent = bluetoothPercent
+                    percentSource = bluetoothPercent == nil ? nil : .bluetoothLowEnergy
                 } else {
                     bluetoothPercent = nil
                     nextBluetoothRead = nil
@@ -67,6 +69,7 @@ final class BatteryMonitor {
                         let reading = await Task.detached { ReceiverKeyboard.read(verifiedReceiver: receiver) }.value
                         receiverOnline = reading?.status.online == true
                         percent = reading?.status.percent
+                        percentSource = percent == nil ? nil : .receiver
                         verifiedReceiver = receiverOnline ? reading?.receiverID : nil
                     }
                 }

@@ -153,6 +153,46 @@ enum Verification {
         precondition((try? SettingsSnapshot.decode(invalid)) == nil)
     }
 
+    static func verifyKeyboardTools() throws {
+        var capture = MacroCapture()
+        capture.add(4, down: true, time: 0, timing: true)
+        capture.add(4, down: true, time: 0.1, timing: true)
+        capture.add(225, down: true, time: 0.25, timing: true)
+        let strokes = capture.balanced
+        precondition(strokes.count == 4 && strokes[0].delay == 250 && !strokes[3].down)
+        let encoded = try Macro(repeats: 1, strokes: strokes).encoded()
+        let required = try Macro.writeLength(encoded)
+        precondition(Macro.requiredBytes(strokes) == required)
+
+        let settings = SettingsSnapshot.model
+        let pages = Array(repeating: [UInt8](repeating: 0, count: 4), count: 128)
+        let current = SettingsSnapshot(
+            formatVersion: 2, device: settings, recordedAt: Date(), activeProfile: 2, firmware: 274,
+            lighting: Lighting(effect: 1, speed: 0, brightness: 2, flags: 7, rgb: 0x739BFF),
+            options: DeviceOptions(debounce: 0, automaticOS: false, timers: [0, 0, 0, 0]),
+            keyColors: Array(repeating: 0, count: 128),
+            profiles: Array(repeating: .init(base: pages, function: pages), count: 3)
+        )
+        let slot: UInt8 = 9
+        let preset = SharedPreset(version: 1, device: settings, firmware: 274, payload: .keys(fn: true, bindings: [slot: KeyAssignment.key(6).bytes]))
+        let decoded = try SharedPreset.decode(preset.encode())
+        let plan = try SnapshotRestorePlan(current: current, backup: decoded.desired(from: current), presetScope: decoded.scope)
+        precondition(plan.changes == [.sharedFn(slot: slot)])
+        precondition(plan.backup.binding(profile: 2, fn: true, slot: slot) == KeyAssignment.key(6).bytes)
+        precondition(plan.backup.binding(profile: 0, fn: true, slot: slot) == [0, 0, 0, 0])
+        let invalid = SharedPreset(version: 1, device: settings, firmware: 274, payload: .keys(fn: false, bindings: [slot: KeyAssignment.macro(slot: 0, playback: 0).bytes]))
+        precondition((try? invalid.encode()) == nil)
+
+        let template = ScreenTemplate(kind: .pixel, background: 0, pixels: [0: 0xFF0000, 255: 0x0000FF])
+        let art = try template.artwork()
+        precondition(art.frames.count == 1 && art.delay == 0)
+        precondition(art.frames[0].prefix(2) == [248, 0] && art.frames[0].suffix(2) == [0, 31])
+        for kind: ScreenTemplate.Kind in [.name, .monogram] {
+            let still = try ScreenTemplate(kind: kind, background: 0).artwork()
+            precondition(still.frames[0].contains { $0 != 0 })
+        }
+    }
+
     static func verifyArtwork() throws {
         let data = NSMutableData()
         let destination = CGImageDestinationCreateWithData(data, "com.compuserve.gif" as CFString, 2, nil)!

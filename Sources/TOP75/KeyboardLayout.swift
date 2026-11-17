@@ -35,6 +35,7 @@ struct KeyboardLayout: View {
     var selected: Set<UInt8> = []
     var marked: Set<UInt8> = []
     var colors: [UInt32] = []
+    var legends: [UInt8: String] = [:]
     var select: ((UInt8) -> Void)?
 
     var body: some View {
@@ -65,13 +66,17 @@ struct KeyboardLayout: View {
     private func key(_ cap: Cap) -> some View {
         if let code = cap.code {
             let selected = selected.contains(code)
-            let name = KeySettingsView.keys.first { $0.0 == code }?.1 ?? cap.legend
+            let name = l(KeySettingsView.keys.first { $0.0 == code }?.1 ?? cap.legend)
+            let assignment = legends[code]
             let slot = KeySettingsView.slots[code].map(Int.init)
             let rgb = slot.flatMap { colors.indices.contains($0) ? colors[$0] : nil } ?? 0
             let tint = rgb == 0 ? Color(nsColor: .controlBackgroundColor) : Color(rgb24: rgb).opacity(0.36)
             let painted = !colors.isEmpty
             let face =
-                Text(cap.legend)
+                Text(assignment ?? cap.legend)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .padding(.horizontal, 2)
                     .font(.system(size: 10, weight: .medium, design: .monospaced))
                     .foregroundStyle(selected && !painted ? Color.white : Color.primary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -92,12 +97,14 @@ struct KeyboardLayout: View {
             if let select {
                 Button { select(code) } label: { face }
                     .buttonStyle(.plain)
-                    .accessibilityLabel(l(name))
+                    .accessibilityLabel(name)
                     .accessibilityAddTraits(selected ? .isSelected : [])
                     .accessibilityValue(marked.contains(code) ? l("Değiştirildi") : "")
-                    .help(l(name))
+                    .help(name)
             } else {
-                face.accessibilityHidden(!selected).accessibilityLabel(l(name))
+                face.help(assignment.map { "\(name) · \($0)" } ?? name)
+                    .accessibilityHidden(!selected && assignment == nil)
+                    .accessibilityLabel(assignment.map { "\(name) · \($0)" } ?? name)
             }
         } else {
             Text(cap.legend)

@@ -146,8 +146,8 @@ extension Keyboard {
 
 struct SettingsSnapshot: Codable, Sendable {
     struct Profile: Codable, Sendable {
-        let base: [[UInt8]]
-        let function: [[UInt8]]
+        var base: [[UInt8]]
+        var function: [[UInt8]]
     }
 
     static let model = "Darmoshark TOP75 (957)"
@@ -156,10 +156,10 @@ struct SettingsSnapshot: Codable, Sendable {
     let recordedAt: Date
     let activeProfile: UInt8
     let firmware: UInt16
-    let lighting: Lighting
+    var lighting: Lighting
     let options: DeviceOptions
-    let keyColors: [UInt32]
-    let profiles: [Profile]
+    var keyColors: [UInt32]
+    var profiles: [Profile]
     var macros: [UInt8: Data]? = nil
 
     enum CodingKeys: String, CodingKey {
@@ -235,6 +235,58 @@ extension Keyboard {
             if try readProfile(device) != profile { _ = try selectProfile(device, profile: profile) }
         } catch {
             throw SnapshotError.profileRecoveryFailed
+        }
+    }
+
+    static func readPresetState(_ device: KeyboardAccess, scope: SharedPreset.Scope) throws -> SettingsSnapshot {
+        let active = try readProfile(device)
+        let firmware = try readFirmware(device)
+        let emptyLayer = Array(repeating: [UInt8](repeating: 0, count: 4), count: 128)
+        var settings = SettingsSnapshot(
+            formatVersion: 2, device: SettingsSnapshot.model, recordedAt: Date(), activeProfile: active,
+            firmware: firmware, lighting: Lighting(effect: 0, speed: 0, brightness: 0, flags: 7, rgb: 0),
+            options: DeviceOptions(debounce: 0, automaticOS: false, timers: [0, 0, 0, 0]),
+            keyColors: Array(repeating: 0, count: 128),
+            profiles: Array(repeating: .init(base: emptyLayer, function: emptyLayer), count: 3)
+        )
+        switch scope {
+        case .lighting:
+            settings.lighting = try readLighting(device)
+            settings.keyColors = try readKeyColors(device)
+        case .keys(let fn, let slots):
+            guard slots.allSatisfy({ $0 < 128 }) else { throw PresetError.invalid }
+            let pages = Set(slots.map { $0 / 16 }).sorted()
+            var layer = emptyLayer
+            for page in pages {
+                let chunk = try device.request(fn ? 0x90 : 0x89, parameters: [fn ? 0 : active, page], checkEcho: false)
+                guard !chunk.allSatisfy({ $0 == 0xFF }) else { throw KeyboardError.invalidReply }
+                let start = Int(page) * 16
+                layer.replaceSubrange(start..<(start + 16), with: bindings(chunk))
+            }
+            if fn {
+                settings.profiles[Int(active)].function = layer
+                if sharesFnLayer(firmware) && active > 0 { settings.profiles[Int(3 - active)].function = layer }
+            } else {
+                settings.profiles[Int(active)].base = layer
+            }
+        case .macro(let slot):
+            guard slot < 50 else { throw PresetError.invalid }
+            settings.macros = [slot: Data(try readMacro(device, slot: slot))]
+        }
+        guard try readProfile(device) == active else { throw KeyboardError.mismatch }
+        return settings
+    }
+
+    static func activeKeymap(connection: KeyboardConnection) throws -> ActiveKeymap {
+        try withDevice(connection: connection) { device in
+            let profile = try readProfile(device)
+            let base = bindings(try readPages(device, opcode: 0x89, index: profile, count: 8))
+            let fn = bindings(try readPages(device, opcode: 0x90, index: 0, count: 8))
+            guard try readProfile(device) == profile else { throw KeyboardError.mismatch }
+            func layer(_ entries: [[UInt8]]) -> [UInt8: KeyAssignment] {
+                KeySettingsView.slots.mapValues { KeyAssignment(bytes: entries[Int($0)]) }
+            }
+            return ActiveKeymap(profile: profile, base: layer(base), function: layer(fn))
         }
     }
 

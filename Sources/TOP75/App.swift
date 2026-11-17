@@ -17,6 +17,7 @@ struct Entry: Identifiable, Hashable {
         case "Makrolar": .macros
         case "Ekran": .display
         case "Cihaz ayarları": .device
+        case "Tuş testi": .test
         default: nil
         }
     }
@@ -36,7 +37,10 @@ struct Entry: Identifiable, Hashable {
         Entry(title: "Ekran görseli ve GIF", group: "Ekran", shortcut: "", detail: "Ekran bölümünden PNG, JPEG veya GIF seçip klavyeye gönderebilirsin.", keywords: "lcd animasyon resim display"),
         Entry(title: "Tuş ataması", group: "Tuşlar ve profiller", shortcut: "", detail: "Bir fiziksel tuş seç, mevcut atamasını gör ve temel veya Fn katmanında düzenle.", keywords: "remap mapping fn key assignment"),
         Entry(title: "Profil seçimi ve adlandırma", group: "Tuşlar ve profiller", shortcut: "", detail: "Üç cihaz profili arasında geçiş yap ve profillere bu Mac’te ad ver.", keywords: "profile name rename"),
-        Entry(title: "Makro düzenleme ve önizleme", group: "Makrolar", shortcut: "", detail: "Tuş olaylarını sırala, gecikmelerini düzenle ve zaman çizelgesini önizle.", keywords: "macro keyboard events timeline preview"),
+        Entry(title: "Makro kaydı, düzenleme ve önizleme", group: "Makrolar", shortcut: "", detail: "TOP75’te tuşlara basarak makro kaydet. Olayları ve gecikmeleri düzenle, önizle ve klavyeye yaz.", keywords: "macro record keyboard events timeline preview"),
+        Entry(title: "Tuş testi", group: "Tuş testi", shortcut: "", detail: "Tuşları test et ve bağlantı tanısını kopyala.", keywords: "key tester diagnostics hid bağlantı"),
+        Entry(title: "Paylaşılabilir ön ayarlar", group: "Cihaz ayarları", shortcut: "", detail: "Aydınlatma, seçili tuşlar veya tek makroyu ayrı bir dosyayla paylaş.", keywords: "preset export import share json"),
+        Entry(title: "Ekran şablonları", group: "Ekran", shortcut: "", detail: "İsim, monogram veya piksel çizimini klavye ekranı için hazırla.", keywords: "template pixel art tft lcd"),
         Entry(title: "Ayar kaydını geri yükleme", group: "Cihaz ayarları", shortcut: "", detail: "Bir TOP75 JSON ayar kaydını aç, klavyedeki ayarlarla karşılaştır ve geri yüklemek istediğin farkları seç.", keywords: "restore backup json import export snapshot"),
         Entry(title: "Pil ve şarj", group: "Cihaz ayarları", shortcut: "", detail: "Pil simgesi kırmızıysa klavyeyi şarj et. Kablo bağlıyken ekrandaki pil animasyonu şarj durumunu gösterir.", keywords: "batarya battery charge")
     ]
@@ -212,7 +216,10 @@ enum Launch {
             Verification.verifyBluetoothBattery()
             try! Verification.verifyRestore()
             try! Verification.verifyArtwork()
-            print("Localization, guide, layout, USB and Bluetooth HID, macro, restore and GIF/RGB565 checks passed.")
+            try! Verification.verifyKeyboardTools()
+            precondition(english("Tuş testi") == "Key Test")
+            precondition(Entry.search("key tester", language: english).first?.destination == .test)
+            print("Localization, guide, keyboard tools, USB and Bluetooth HID, macro, restore, and artwork checks passed.")
             return
         }
         TOP75App.main()
@@ -255,6 +262,11 @@ struct TOP75App: App {
         } label: {
             Label("TOP75", systemImage: "keyboard")
         }
+        Window(preference.language("Tuş haritası"), id: "keymap") {
+            KeymapCard().environment(\.appLanguage, preference.language)
+        }
+        .defaultSize(width: 660, height: 345)
+        .windowResizability(.contentSize)
         Settings {
             PreferencesView(preference: $preference)
                 .environment(\.appLanguage, preference.language)
@@ -596,7 +608,7 @@ struct KeySettingsView: View {
         ]
         return letters + digits + functionKeys + controls
     }()
-    static let slots: [UInt8: UInt8] = [4: 9, 5: 40, 6: 28, 7: 21, 8: 20, 9: 27, 10: 33, 11: 39, 12: 50, 13: 45, 14: 51, 15: 57, 16: 52, 17: 46, 18: 56, 19: 62, 20: 8, 21: 26, 22: 15, 23: 32, 24: 44, 25: 34, 26: 14, 27: 22, 28: 38, 29: 16, 30: 7, 31: 13, 32: 19, 33: 25, 34: 31, 35: 37, 36: 43, 37: 49, 38: 55, 39: 61, 40: 81, 41: 0, 42: 79, 43: 2, 44: 41, 45: 67, 46: 73, 47: 68, 48: 74, 49: 80, 50: 75, 51: 63, 52: 69, 53: 1, 54: 58, 55: 64, 56: 70, 57: 3, 58: 12, 59: 18, 60: 24, 61: 30, 62: 36, 63: 42, 64: 48, 65: 54, 66: 60, 67: 66, 68: 72, 69: 78, 74: 86, 75: 87, 76: 85, 78: 88, 79: 89, 80: 77, 81: 83, 82: 82, 100: 10, 224: 5, 225: 4, 226: 17, 227: 11, 228: 71, 229: 76, 230: 59]
+    nonisolated static let slots: [UInt8: UInt8] = [4: 9, 5: 40, 6: 28, 7: 21, 8: 20, 9: 27, 10: 33, 11: 39, 12: 50, 13: 45, 14: 51, 15: 57, 16: 52, 17: 46, 18: 56, 19: 62, 20: 8, 21: 26, 22: 15, 23: 32, 24: 44, 25: 34, 26: 14, 27: 22, 28: 38, 29: 16, 30: 7, 31: 13, 32: 19, 33: 25, 34: 31, 35: 37, 36: 43, 37: 49, 38: 55, 39: 61, 40: 81, 41: 0, 42: 79, 43: 2, 44: 41, 45: 67, 46: 73, 47: 68, 48: 74, 49: 80, 50: 75, 51: 63, 52: 69, 53: 1, 54: 58, 55: 64, 56: 70, 57: 3, 58: 12, 59: 18, 60: 24, 61: 30, 62: 36, 63: 42, 64: 48, 65: 54, 66: 60, 67: 66, 68: 72, 69: 78, 74: 86, 75: 87, 76: 85, 78: 88, 79: 89, 80: 77, 81: 83, 82: 82, 100: 10, 224: 5, 225: 4, 226: 17, 227: 11, 228: 71, 229: 76, 230: 59]
 
     @Binding var connection: KeyboardConnection?
     private var connected: Bool { connection != nil }

@@ -114,7 +114,7 @@ final class LightingScheduler {
         canSkip = false
     }
 
-    func quickToggle(connection: KeyboardConnection) async throws {
+    func quickToggle(connection: KeyboardConnection, power: Bool? = nil) async throws {
         guard !busy else { throw KeyboardError.mismatch }
         busy = true
         defer { busy = false }
@@ -122,6 +122,7 @@ final class LightingScheduler {
         try await Task.detached {
             try Keyboard.withDevice(connection: connection) { device in
                 let current = try Keyboard.readLighting(device)
+                if let power, power == (current.effect != 0) { return }
                 let key = "quickPreviousLighting-" + device.deviceIdentifier
                 let defaults = UserDefaults.standard
                 if current.effect == 0 {

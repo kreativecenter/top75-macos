@@ -16,6 +16,15 @@ Darmoshark TOP75 için ücretsiz ve açık kaynak Mac uygulaması. RGB rengini d
 
 Mac’te **TOP75 BT5.0** veya **TOP75 BT3.0** ile eşleş ve TOP75’i aç. Kenar çubuğunda **Bluetooth erişimine izin ver** düğmesine bas. **Sistem Ayarları → Gizlilik ve Güvenlik → Giriş İzleme** bölümünde TOP75’i etkinleştir. macOS isterse uygulamayı yeniden aç. Aydınlatma, profiller, tuş atamaları, makrolar ve JSON yedekleme dahil cihaz ayarları Bluetooth üzerinden çalışır. Ekrana görsel yüklemek için USB ile bağlan.
 
+### Tuşları test et, makro kaydet ve ön ayar paylaş
+
+- **Tuş testi** ekranında klavyenin gönderdiği tuş kodlarını, çoklu basışları ve medya olaylarını gör. **Bağlantı tanısı** ayar bağlantısını, firmware yanıtını ve pil kaynağını gösterir. Tanıyı destek için kopyalayabilirsin.
+- Araç çubuğundan veya **⇧⌘K** ile **Tuş haritası** penceresini aç. Etkin profilin Temel ve Fn atamalarını görüntüle, pencereyi üstte tut veya iki katmanı PDF olarak kaydet.
+- **Makrolar** bölümünde hedef yuvayı oku ve **Makro kaydet**’i aç. Tuşlara basarak zaman çizelgesini oluştur ve önizledikten sonra klavyeye yaz.
+- **Cihaz ayarları → Paylaşılabilir ön ayarlar** bölümünden RGB, seçili tuş atamaları veya tek makroyu ayrı dosyaya kaydet. İçe aktarırken değişiklikleri gözden geçir. Tuş atamaları etkin profile uygulanır ve firmware sürümü eşleşmelidir.
+- **Ekran → Ekran şablonları** bölümünde isim, monogram veya piksel çizimi oluştur. 128 × 128 sonucu önizle ve USB ile klavye ekranına yükle.
+- macOS **Kestirmeler** uygulamasında **TOP75 Aydınlatmasını Ayarla** ve **TOP75 Profilini Seç** eylemlerini kullan.
+
 ### Işık kapatma aralığı
 
 Kenar çubuğundaki **Zamanlama** panelinde günlük başlangıç ve bitiş saatlerini seç. Örneğin 23.00–08.00 arasında klavyenin ışığı kapanır ve 08.00’de önceki efekt geri gelir. Pencere kapalıyken uygulama çalışmaya devam eder. İstersen **Oturum açınca TOP75’i başlat** seçeneğini aç. Işığı erkenden geri getirmek için **Bu aralığı atla** düğmesini kullan. Uygulamanın değişikliği yapabilmesi için klavyenin USB veya Bluetooth ile bağlı olması gerekir.

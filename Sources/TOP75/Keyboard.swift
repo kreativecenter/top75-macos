@@ -27,6 +27,11 @@ struct Lighting: Codable, Sendable, Equatable {
     var flags: UInt8
     var rgb: UInt32
 
+    var isSupported: Bool {
+        rgb <= 0xFFFFFF && speed <= 4 && brightness <= 4 && (flags & 15) <= 8 && (flags >> 4) <= 3
+            && ((0...19).contains(effect) || effect == 66)
+    }
+
     var report: [UInt8] {
         let color = rgb == 0xFFFFFF ? 0xFAFFFA : rgb
         return Keyboard.report([

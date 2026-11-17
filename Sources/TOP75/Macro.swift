@@ -21,7 +21,7 @@ struct Macro: Sendable {
         strokes = decoded.strokes
     }
 
-    private static let writableBytes = 4 * 56
+    static let writableBytes = 4 * 56
     private static let terminatorSize = 4
 
     static func writeLength(_ bytes: [UInt8]) throws -> Int {
@@ -51,6 +51,11 @@ struct Macro: Sendable {
             strokes.append(Stroke(key: key, down: flags & 0x80 != 0, delay: delay))
         }
         return (repeats, strokes, cursor)
+    }
+
+    static func requiredBytes(_ strokes: [Stroke]) -> Int {
+        guard !strokes.isEmpty else { return 0 }
+        return strokes.reduce(2 + terminatorSize) { $0 + ((1...127).contains($1.delay) ? 2 : 4) }
     }
 
     func encoded() throws -> [UInt8] {
