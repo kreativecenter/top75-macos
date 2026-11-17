@@ -465,7 +465,6 @@
 "Limit kartını ekrana aktar" = "Limit kartını ekrana aktar";
 "Otomatik aktarımı durdur" = "Otomatik aktarımı durdur";
 "Otomatik aktarımı aç" = "Otomatik aktarımı aç";
-"USB ile seçilen yuvaya aktarılır. Otomatik mod, pencere açıkken 15 dakikada bir kontrol eder." = "USB ile seçilen yuvaya aktarılır. Otomatik mod, pencere açıkken 15 dakikada bir kontrol eder.";
 "TOP75 limit kartı" = "TOP75 limit kartı";
 "TOP75, Claude Code’un status line ayarına bir okuyucu ekler. Mevcut komut çalışmaya devam eder. Yeni bir CLI yanıtı geldiğinde limitler okunur." = "TOP75, Claude Code’un status line ayarına bir okuyucu ekler. Mevcut komut çalışmaya devam eder. Yeni bir CLI yanıtı geldiğinde limitler okunur.";
 "Bağla" = "Bağla";
@@ -491,3 +490,5 @@
 "Limit gösterimi" = "Limit gösterimi";
 "%@ kullanıldı" = "%@ kullanıldı";
 "%@ kaldı" = "%@ kaldı";
+"USB ile seçilen yuvaya aktarılır. Otomatik mod, TOP75 menü çubuğunda açıkken de her 15 dakikada bir kontrol eder." = "USB ile seçilen yuvaya aktarılır. Otomatik mod, TOP75 menü çubuğunda açıkken de her 15 dakikada bir kontrol eder.";
+"TOP75’i menü çubuğunda bırak" = "TOP75’i menü çubuğunda bırak";

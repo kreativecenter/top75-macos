@@ -230,9 +230,7 @@ enum Launch {
 }
 
 struct TOP75App: App {
-    #if SWIFT_PACKAGE
-    @NSApplicationDelegateAdaptor(DevelopmentAppDelegate.self) private var appDelegate
-    #endif
+    @NSApplicationDelegateAdaptor(TOP75AppDelegate.self) private var appDelegate
     @AppStorage("interfaceLanguage") private var preference = LanguagePreference.system
     @AppStorage("showMenuBar") private var showMenuBar = true
 
@@ -243,13 +241,20 @@ struct TOP75App: App {
     }
 
     var body: some Scene {
-        WindowGroup("TOP75", id: "main") {
+        Window("TOP75", id: "main") {
             WorkspaceView()
                 .environment(\.appLanguage, preference.language)
                 .environment(\.locale, Locale(identifier: preference.language.code))
         }
         .defaultSize(width: 1060, height: 735)
         .commands {
+            CommandGroup(replacing: .appTermination) {
+                Button(preference.language(showMenuBar ? "TOP75’i menü çubuğunda bırak" : "TOP75’ten çık")) {
+                    if showMenuBar { NSApp.hide(nil) }
+                    else { NSApp.terminate(nil) }
+                }
+                .keyboardShortcut("q", modifiers: .command)
+            }
             CommandGroup(after: .help) {
                 Button(preference.language("GitHub’da TOP75")) {
                     NSWorkspace.shared.open(URL(string: "https://github.com/kreativecenter/top75-macos")!)
@@ -271,6 +276,7 @@ struct TOP75App: App {
         .windowResizability(.contentSize)
         Settings {
             PreferencesView(preference: $preference)
+                .onChange(of: preference) { UsageDisplay.shared.updateLanguage(preference.language) }
                 .environment(\.appLanguage, preference.language)
                 .environment(\.locale, Locale(identifier: preference.language.code))
         }

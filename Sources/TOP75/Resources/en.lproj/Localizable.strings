@@ -447,7 +447,6 @@
 "Limit kartını ekrana aktar" = "Send limits to display";
 "Otomatik aktarımı durdur" = "Stop automatic updates";
 "Otomatik aktarımı aç" = "Enable automatic updates";
-"USB ile seçilen yuvaya aktarılır. Otomatik mod, pencere açıkken 15 dakikada bir kontrol eder." = "Uploads to the selected slot over USB. Automatic mode checks every 15 minutes while the window is open.";
 "TOP75 limit kartı" = "TOP75 limit card";
 "TOP75, Claude Code’un status line ayarına bir okuyucu ekler. Mevcut komut çalışmaya devam eder. Yeni bir CLI yanıtı geldiğinde limitler okunur." = "TOP75 adds a reader to Claude Code’s status line. Your existing command keeps working. Limits are read when a new CLI response arrives.";
 "Bağla" = "Connect";
@@ -473,3 +472,5 @@
 "Limit gösterimi" = "Limit display";
 "%@ kullanıldı" = "%@ used";
 "%@ kaldı" = "%@ remaining";
+"USB ile seçilen yuvaya aktarılır. Otomatik mod, TOP75 menü çubuğunda açıkken de her 15 dakikada bir kontrol eder." = "Uploads to the selected slot over USB. Automatic mode checks every 15 minutes, including when TOP75 is in the menu bar.";
+"TOP75’i menü çubuğunda bırak" = "Keep TOP75 in the Menu Bar";

@@ -96,104 +96,67 @@ struct UsageLimitSection: View {
         var id: Self { self }
     }
 
-    private struct SentCard: Equatable {
-        let numbers: [Int?]
-        let metric: UsageMetric
-        let language: String
-    }
-
-    @AppStorage("usageDisplayMetric") private var metric = UsageMetric.used
-    @State private var codex = UsageLimits()
-    @State private var claude: ClaudeUsage.Reading?
-    @State private var bridgeEnabled = false
-    @State private var artwork: ScreenArtwork?
+    @Bindable private var display = UsageDisplay.shared
     @State private var confirmation: Confirmation?
-    @State private var refreshing = false
-    @State private var autoUpdate = false
-    @State private var slot: UInt8?
-    @State private var sentCard: SentCard?
-    @State private var codexMessage = ""
-    @State private var status = ""
-
-    private var card: UsageLCD { UsageLCD(codex: codex, claude: claude?.limits ?? UsageLimits(), metric: metric) }
-    private var cardStamp: SentCard { SentCard(numbers: card.numbers, metric: metric, language: l.code) }
 
     var body: some View {
         controls
-            .onAppear {
-                bridgeEnabled = ClaudeUsage.isConfigured
-                claude = bridgeEnabled ? ClaudeUsage.read() : nil
-                preparePreview()
-            }
-            .onChange(of: connected) { sentCard = nil }
-            .onChange(of: slot) { sentCard = nil }
-            .onChange(of: l.code) { preparePreview() }
-            .onChange(of: metric) { preparePreview() }
-            .task(id: autoUpdate && connected ? slot : nil, autoRefresh)
+            .onAppear { display.updateLanguage(l); display.readClaude() }
+            .onChange(of: l) { display.updateLanguage(l) }
             .alert(item: $confirmation, content: alert)
     }
 
     private var controls: some View {
         Section(l("Codex ve Claude limitleri")) {
-            Picker(l("Limit gösterimi"), selection: $metric) {
+            Picker(l("Limit gösterimi"), selection: $display.metric) {
                 ForEach(UsageMetric.allCases, id: \.self) { Text(l($0.title)).tag($0) }
             }
             .pickerStyle(.segmented)
             HStack(alignment: .top, spacing: 18) {
-                if let image = artwork?.previews.first {
+                if let image = display.artwork?.previews.first {
                     Image(decorative: image, scale: 1)
                         .resizable().interpolation(.none).frame(width: 128, height: 128)
                         .clipShape(.rect(cornerRadius: 6))
                 }
                 VStack(alignment: .leading, spacing: 10) {
-                    usageRow("Codex", windows: codex)
-                    usageRow("Claude", windows: claude?.limits ?? UsageLimits())
-                    if !codexMessage.isEmpty { Text(l(codexMessage)).font(.caption).foregroundStyle(.secondary) }
+                    usageRow("Codex", windows: display.codex)
+                    usageRow("Claude", windows: display.claude?.limits ?? UsageLimits())
+                    if !display.codexMessage.isEmpty { Text(l(display.codexMessage)).font(.caption).foregroundStyle(.secondary) }
                     Text(claudeStatus).font(.caption).foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             HStack {
                 Button(l("Limitleri yenile"), systemImage: "arrow.clockwise") {
-                    Task { await refresh() }
+                    Task { await display.refresh() }
                 }
-                .disabled(refreshing)
-                if refreshing { ProgressView().controlSize(.small) }
+                .disabled(display.refreshing)
+                if display.refreshing { ProgressView().controlSize(.small) }
                 Spacer()
-                Button(l(bridgeEnabled ? "Claude bağlantısını kaldır" : "Claude Code’u bağla")) {
-                    confirmation = bridgeEnabled ? .unlink : .link
+                Button(l(display.bridgeEnabled ? "Claude bağlantısını kaldır" : "Claude Code’u bağla")) {
+                    confirmation = display.bridgeEnabled ? .unlink : .link
                 }
-                .disabled(refreshing)
+                .disabled(display.refreshing)
             }
-            Picker(l("Limit kartı yuvası"), selection: $slot) {
+            Picker(l("Limit kartı yuvası"), selection: $display.slot) {
                 Text(l("Yuva seç")).tag(nil as UInt8?)
                 ForEach(0..<5) { Text(l.format("Yuva %@", String($0 + 1))).tag(UInt8($0) as UInt8?) }
             }
-            .disabled(autoUpdate || transfer.isBusy)
+            .disabled(display.autoUpdate || transfer.isBusy)
             HStack {
                 Button(l("Limit kartını ekrana aktar"), systemImage: "display") { confirmation = .upload }
                     .buttonStyle(.borderedProminent)
-                    .disabled(!connected || slot == nil || !card.hasLimits || transfer.isBusy || refreshing)
-                if autoUpdate {
-                    Button(l("Otomatik aktarımı durdur")) { autoUpdate = false }
+                    .disabled(!connected || display.slot == nil || !display.card.hasLimits || transfer.isBusy || display.refreshing)
+                if display.autoUpdate {
+                    Button(l("Otomatik aktarımı durdur")) { display.stopAutomatic() }
                 } else {
                     Button(l("Otomatik aktarımı aç")) { confirmation = .automatic }
-                        .disabled(!connected || slot == nil || transfer.isBusy || refreshing)
+                        .disabled(!connected || display.slot == nil || transfer.isBusy || display.refreshing)
                 }
             }
-            Text(l("USB ile seçilen yuvaya aktarılır. Otomatik mod, pencere açıkken 15 dakikada bir kontrol eder."))
+            Text(l("USB ile seçilen yuvaya aktarılır. Otomatik mod, TOP75 menü çubuğunda açıkken de her 15 dakikada bir kontrol eder."))
                 .font(.caption).foregroundStyle(.secondary)
-            if !status.isEmpty { Text(l(status)).foregroundStyle(.secondary) }
-        }
-    }
-
-    private func autoRefresh() async {
-        guard autoUpdate, connected, slot != nil else { return }
-        while !Task.isCancelled {
-            await refresh()
-            if !Task.isCancelled, autoUpdate, sentCard != cardStamp { await upload() }
-            do { try await Task.sleep(for: .seconds(15 * 60)) }
-            catch { return }
+            if !display.status.isEmpty { Text(display.status).foregroundStyle(.secondary) }
         }
     }
 
@@ -202,30 +165,30 @@ struct UsageLimitSection: View {
         case .link:
             return Alert(title: Text(l("Claude Code’u bağla")),
                          message: Text(l("TOP75, Claude Code’un status line ayarına bir okuyucu ekler. Mevcut komut çalışmaya devam eder. Yeni bir CLI yanıtı geldiğinde limitler okunur.")),
-                         primaryButton: .default(Text(l("Bağla"))) { configureClaude(true) },
+                         primaryButton: .default(Text(l("Bağla"))) { display.configureClaude(true) },
                          secondaryButton: .cancel())
         case .unlink:
             return Alert(title: Text(l("Claude bağlantısını kaldır")),
                          message: Text(l("Claude Code’un önceki status line komutu geri yüklenir.")),
-                         primaryButton: .default(Text(l("Kaldır"))) { configureClaude(false) },
+                         primaryButton: .default(Text(l("Kaldır"))) { display.configureClaude(false) },
                          secondaryButton: .cancel())
         case .upload, .automatic:
             return Alert(title: Text(l(option == .upload ? "Limit kartını ekrana aktar" : "Otomatik aktarımı aç")),
-                         message: Text(l.format("Yuva %@ içindeki görsel değişecek.", String(Int(slot ?? 0) + 1))),
+                         message: Text(l.format("Yuva %@ içindeki görsel değişecek.", String(Int(display.slot ?? 0) + 1))),
                          primaryButton: .default(Text(l(option == .upload ? "Aktar" : "Aç"))) {
-                             if option == .upload { Task { await upload() } }
-                             else { sentCard = nil; autoUpdate = true }
+                             if option == .upload { Task { await display.upload() } }
+                             else { display.startAutomatic() }
                          },
                          secondaryButton: .cancel())
         }
     }
 
     private var claudeStatus: String {
-        if let claude {
+        if let claude = display.claude {
             let time = claude.observedAt.formatted(.relative(presentation: .named).locale(Locale(identifier: l.code)))
             return l.format("Claude verisi %@ alındı.", time)
         }
-        return l(bridgeEnabled ? "Claude Code’da bir yanıt alıp limitleri yenile." : "Claude limitleri için Claude Code’u bağla.")
+        return l(display.bridgeEnabled ? "Claude Code’da bir yanıt alıp limitleri yenile." : "Claude limitleri için Claude Code’u bağla.")
     }
 
     private func usageRow(_ title: String, windows: UsageLimits) -> some View {
@@ -241,10 +204,10 @@ struct UsageLimitSection: View {
     private func window(_ title: String, value: UsageLimits.Window?) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(title).font(.caption).foregroundStyle(.secondary)
-            Text(value.map { formatted(metric, window: $0) } ?? "—")
+            Text(value.map { formatted(display.metric, window: $0) } ?? "—")
                 .font(.title3.monospacedDigit())
             if let value {
-                let other: UsageMetric = metric == .used ? .remaining : .used
+                let other: UsageMetric = display.metric == .used ? .remaining : .used
                 Text(l.format(other == .used ? "%@ kullanıldı" : "%@ kaldı", formatted(other, window: value)))
                     .font(.caption).foregroundStyle(.secondary)
             }
@@ -260,24 +223,103 @@ struct UsageLimitSection: View {
         (metric.percent(window) / 100).formatted(.percent.precision(.fractionLength(0...2)).locale(Locale(identifier: l.code)))
     }
 
-    private func configureClaude(_ enabled: Bool) {
+}
+
+@MainActor
+@Observable
+final class UsageDisplay {
+    static let shared = UsageDisplay()
+
+    private struct SentCard: Equatable {
+        let numbers: [Int?]
+        let metric: UsageMetric
+        let language: String
+    }
+
+    var metric = UserDefaults.standard.string(forKey: "usageDisplayMetric")
+        .flatMap(UsageMetric.init(rawValue:)) ?? .used {
+        didSet {
+            UserDefaults.standard.set(metric.rawValue, forKey: "usageDisplayMetric")
+            preparePreview()
+        }
+    }
+    var slot: UInt8? { didSet { if oldValue != slot { sentCard = nil } } }
+    private(set) var codex = UsageLimits()
+    private(set) var claude: ClaudeUsage.Reading?
+    private(set) var bridgeEnabled = false
+    private(set) var artwork: ScreenArtwork?
+    private(set) var refreshing = false
+    private(set) var codexMessage = ""
+    private(set) var status = ""
+    private(set) var autoUpdate = false
+    @ObservationIgnored private var automatic: Task<Void, Never>?
+    private var sentCard: SentCard?
+    private var language = LanguagePreference.system.language
+    private let transfer = WorkspaceTransfer.shared
+
+    var card: UsageLCD {
+        UsageLCD(codex: codex, claude: claude?.limits ?? UsageLimits(), metric: metric)
+    }
+
+    private var cardStamp: SentCard {
+        SentCard(numbers: card.numbers, metric: metric, language: language.code)
+    }
+
+    func updateLanguage(_ language: AppLanguage) {
+        self.language = language
+        preparePreview()
+    }
+
+    func readClaude() {
+        bridgeEnabled = ClaudeUsage.isConfigured
+        claude = bridgeEnabled ? ClaudeUsage.read() : nil
+        preparePreview()
+    }
+
+    func configureClaude(_ enabled: Bool) {
         do {
             try ClaudeUsage.configure(enabled: enabled)
-            bridgeEnabled = ClaudeUsage.isConfigured
-            claude = enabled ? ClaudeUsage.read() : nil
-            preparePreview()
-            status = enabled ? "Claude Code’da yeni bir yanıt al ve limitleri yenile." : "Claude Code bağlantısı kaldırıldı."
+            readClaude()
+            status = language(enabled ? "Claude Code’da yeni bir yanıt al ve limitleri yenile." : "Claude Code bağlantısı kaldırıldı.")
         } catch {
-            status = l.message(error)
+            status = language.message(error)
         }
     }
 
-    private func preparePreview() {
-        let show = card.hasLimits || (autoUpdate && sentCard != nil)
-        artwork = show ? try? card.artwork(turkish: l.code == "tr") : nil
+    func startAutomatic() {
+        guard slot != nil, automatic == nil else { return }
+        autoUpdate = true
+        sentCard = nil
+        automatic = Task {
+            let clock = ContinuousClock()
+            var nextCheck = clock.now
+            var wasConnected = false
+            while !Task.isCancelled {
+                let connected = Keyboard.hasUSBInterface()
+                if connected != wasConnected {
+                    sentCard = nil
+                    if connected { nextCheck = clock.now }
+                    wasConnected = connected
+                }
+                if connected, clock.now >= nextCheck, !refreshing, !transfer.isBusy {
+                    await refresh()
+                    guard !Task.isCancelled else { return }
+                    if sentCard != cardStamp { await upload() }
+                    nextCheck = clock.now + .seconds(15 * 60)
+                }
+                do { try await Task.sleep(for: .seconds(5)) }
+                catch { return }
+            }
+        }
     }
 
-    private func refresh() async {
+    func stopAutomatic() {
+        automatic?.cancel()
+        automatic = nil
+        autoUpdate = false
+    }
+
+    func refresh() async {
         guard !refreshing else { return }
         refreshing = true
         defer { refreshing = false }
@@ -296,21 +338,26 @@ struct UsageLimitSection: View {
         preparePreview()
     }
 
-    private func upload() async {
-        guard connected, let slot, let artwork,
+    func upload() async {
+        guard Keyboard.hasUSBInterface(), let slot, let artwork,
               let id = transfer.start(.display, title: "Limit kartı aktarılıyor") else { return }
         let stamp = cardStamp
         defer { transfer.finish(id) }
         do {
-            try await Task.detached {
+            try await Task.detached { [transfer] in
                 try Keyboard.uploadArtwork(artwork, slot: slot) { fraction in
                     Task { @MainActor in transfer.update(id, progress: fraction) }
                 }
             }.value
             sentCard = stamp
-            status = l.format("Limit kartı %@. yuvaya gönderildi.", String(Int(slot) + 1))
+            status = language.format("Limit kartı %@. yuvaya gönderildi.", String(Int(slot) + 1))
         } catch {
-            status = l.message(error)
+            status = language.message(error)
         }
+    }
+
+    private func preparePreview() {
+        let show = card.hasLimits || (autoUpdate && sentCard != nil)
+        artwork = show ? try? card.artwork(turkish: language.code == "tr") : nil
     }
 }

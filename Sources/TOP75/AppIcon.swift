@@ -14,13 +14,17 @@ enum AppIcon {
     }
 }
 
-#if SWIFT_PACKAGE
 @MainActor
-final class DevelopmentAppDelegate: NSObject, NSApplicationDelegate {
+final class TOP75AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        false
+    }
+
+    #if SWIFT_PACKAGE
     func applicationDidFinishLaunching(_ notification: Notification) {
         if let icon = AppIcon.image() {
             NSApplication.shared.applicationIconImage = icon
         }
     }
+    #endif
 }
-#endif

@@ -34,6 +34,9 @@ struct QuickControls: View {
         if scheduler.canSkip {
             Button(language("Bu aralığı atla"), action: scheduler.skipCurrentInterval)
         }
+        if UsageDisplay.shared.autoUpdate {
+            Button(language("Otomatik aktarımı durdur")) { UsageDisplay.shared.stopAutomatic() }
+        }
         Divider()
         Button(language("TOP75’i aç")) {
             openWindow(id: "main")
