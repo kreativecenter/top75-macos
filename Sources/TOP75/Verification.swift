@@ -1,7 +1,24 @@
+import CoreServices
 import Foundation
 import ImageIO
 
 enum Verification {
+    @MainActor
+    static func verifySystemQuit() {
+        let event = NSAppleEventDescriptor(
+            eventClass: kCoreEventClass, eventID: kAEQuitApplication, targetDescriptor: nil,
+            returnID: AEReturnID(kAutoGenerateReturnID), transactionID: AETransactionID(kAnyTransactionID)
+        )
+        precondition(!TOP75AppDelegate.isSystemQuit(nil))
+        precondition(!TOP75AppDelegate.isSystemQuit(event))
+        event.setParam(NSAppleEventDescriptor(enumCode: kAEQuitAll), forKeyword: kAEQuitReason)
+        precondition(!TOP75AppDelegate.isSystemQuit(event))
+        for reason in [kAEShutDown, kAERestart, kAEReallyLogOut, kAELogOut] {
+            event.setParam(NSAppleEventDescriptor(enumCode: reason), forKeyword: kAEQuitReason)
+            precondition(TOP75AppDelegate.isSystemQuit(event))
+        }
+    }
+
     static func verifyBluetoothKeyboard() {
         let identity = Keyboard.report([0x8F], checksumIndex: 7)
         let packet = BluetoothKeyboard.packet(for: identity)

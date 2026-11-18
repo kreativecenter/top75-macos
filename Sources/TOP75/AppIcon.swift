@@ -1,4 +1,5 @@
 import AppKit
+import CoreServices
 
 @MainActor
 enum AppIcon {
@@ -16,6 +17,30 @@ enum AppIcon {
 
 @MainActor
 final class TOP75AppDelegate: NSObject, NSApplicationDelegate {
+    private var quittingFromMenuBar = false
+
+    func quitFromMenuBar() {
+        quittingFromMenuBar = true
+        defer { quittingFromMenuBar = false }
+        NSApp.terminate(nil)
+    }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        let showMenuBar = UserDefaults.standard.object(forKey: "showMenuBar") as? Bool ?? true
+        let event = NSAppleEventManager.shared().currentAppleEvent
+        guard showMenuBar, !quittingFromMenuBar, !Self.isSystemQuit(event) else {
+            return .terminateNow
+        }
+        sender.hide(nil)
+        return .terminateCancel
+    }
+
+    static func isSystemQuit(_ event: NSAppleEventDescriptor?) -> Bool {
+        guard let event, event.eventID == kAEQuitApplication,
+              let reason = event.paramDescriptor(forKeyword: kAEQuitReason)?.enumCodeValue else { return false }
+        return [kAEShutDown, kAERestart, kAEReallyLogOut, kAELogOut].contains(reason)
+    }
+
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         false
     }

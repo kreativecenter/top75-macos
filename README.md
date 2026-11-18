@@ -40,7 +40,7 @@ In **Display → Display templates**, design a name, a monogram, or 16 × 16 pix
 
 Open **Display → Codex & Claude limits** and refresh. The card shows the 5-hour and 7-day percentages. Switch between **Used** and **Remaining** above the preview. Codex uses the locally installed CLI signed in to ChatGPT. Use **Connect Claude Code** once for the standard Claude Code settings, then get a new response in Claude Code and refresh. Disconnect in TOP75 to restore the prior status-line command.
 
-Choose one of the five still-image slots and upload over USB. Automatic mode checks every 15 minutes and sends a card when its displayed percentages change. The menu bar app keeps it running when the window closes. Choose **Quit TOP75** from the menu bar icon to exit. The keyboard keeps the last uploaded image between updates.
+Choose one of the five still-image slots and upload over USB. Automatic mode checks every 15 minutes and sends a card when its displayed percentages change. With the menu bar icon enabled, closing the window, pressing **⌘Q**, or choosing **Quit** in the Dock keeps TOP75 running. Choose **Quit TOP75** from the menu bar icon to exit. The keyboard keeps the last uploaded image between updates.
 
 ### Use macOS Shortcuts
 

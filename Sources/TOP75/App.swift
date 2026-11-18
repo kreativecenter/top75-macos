@@ -211,6 +211,7 @@ enum Launch {
             precondition(pixels.count == 32_768 && pixels.prefix(6) == [0, 31, 248, 0, 0, 31])
             precondition(Entry.search("restore backup", language: english).first?.destination == .device)
             precondition(english("Geri yükleme önizlemesi") == "Restore preview")
+            Verification.verifySystemQuit()
             Verification.verifyBluetoothKeyboard()
             Verification.verifyLightingSchedule()
             Verification.verifyReceiverBattery()
@@ -250,8 +251,7 @@ struct TOP75App: App {
         .commands {
             CommandGroup(replacing: .appTermination) {
                 Button(preference.language(showMenuBar ? "TOP75’i menü çubuğunda bırak" : "TOP75’ten çık")) {
-                    if showMenuBar { NSApp.hide(nil) }
-                    else { NSApp.terminate(nil) }
+                    NSApp.terminate(nil)
                 }
                 .keyboardShortcut("q", modifiers: .command)
             }
@@ -265,7 +265,7 @@ struct TOP75App: App {
             }
         }
         MenuBarExtra(isInserted: $showMenuBar) {
-            QuickControls(language: preference.language)
+            QuickControls(language: preference.language, quit: appDelegate.quitFromMenuBar)
         } label: {
             Label("TOP75", systemImage: "keyboard")
         }

@@ -4,6 +4,7 @@ import SwiftUI
 struct QuickControls: View {
     @Environment(\.openWindow) private var openWindow
     let language: AppLanguage
+    let quit: () -> Void
     @AppStorage("profileNames") private var names = Data()
     private let battery = BatteryMonitor.shared
     private let profiles = ProfileAutomation.shared
@@ -42,7 +43,7 @@ struct QuickControls: View {
             openWindow(id: "main")
             NSApp.activate(ignoringOtherApps: true)
         }
-        Button(language("TOP75’ten çık")) { NSApp.terminate(nil) }
+        Button(language("TOP75’ten çık"), action: quit)
     }
 
     private var connectionLabel: String {
