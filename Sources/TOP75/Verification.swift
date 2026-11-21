@@ -237,6 +237,24 @@ enum Verification {
         precondition(Set(artwork.frames[0]).count > 20)
     }
 
+    static func verifyUpdateCheck() throws {
+        let installed = AppVersion("0.12.3")!
+        precondition(AppVersion("v0.13.0")! > installed && AppVersion("0.12.10")! > AppVersion("0.12.9")!)
+        precondition(AppVersion("0.13")! == AppVersion("v0.13.0")! && !(AppVersion("0.13")! < AppVersion("0.13.0")!))
+        for invalid in ["", "v", "1.0.0-beta", "1..0", "0.13.x"] { precondition(AppVersion(invalid) == nil) }
+        func release(_ tag: String, draft: Bool = false, prerelease: Bool = false) throws -> UpdateChecker.GitHubRelease {
+            try JSONDecoder().decode(UpdateChecker.GitHubRelease.self, from: Data("""
+            {"tag_name":"\(tag)","draft":\(draft),"prerelease":\(prerelease),"html_url":"https://example.com"}
+            """.utf8))
+        }
+        let newer = UpdateChecker.newer(try release("v0.13.0"), than: installed)
+        precondition(newer?.page.absoluteString == "https://github.com/kreativecenter/top75-macos/releases/tag/v0.13.0")
+        for skipped in [try release("v0.12.3"), try release("v0.12.2"),
+                        try release("v0.14.0", prerelease: true), try release("v0.14.0", draft: true)] {
+            precondition(UpdateChecker.newer(skipped, than: installed) == nil)
+        }
+    }
+
     static func verifyArtwork() throws {
         let data = NSMutableData()
         let destination = CGImageDestinationCreateWithData(data, "com.compuserve.gif" as CFString, 2, nil)!

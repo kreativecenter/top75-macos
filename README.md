@@ -7,11 +7,19 @@
   <p><a href="https://github.com/kreativecenter/top75-macos/releases/latest/download/TOP75-macOS.dmg"><strong>Download DMG</strong></a> · <a href="#download-and-install-on-mac">Install on Mac</a> · <a href="#build-from-source">Build</a> · <a href="docs/README.tr.md">Türkçe</a></p>
 </div>
 
-A free, open-source Mac app for the Darmoshark TOP75 mechanical keyboard. Use it to change RGB lighting, remap keys, edit macros, set a daily lights-off schedule, and upload images or GIFs to the keyboard display. Connect over USB or Bluetooth. The app runs on macOS 14 or later on Apple Silicon and Intel Macs.
+A free, open-source Mac app for the Darmoshark TOP75 mechanical keyboard. Change RGB lighting, remap keys and edit macros over USB, Bluetooth or the 2.4 GHz receiver, so the keyboard can stay wireless while you configure it. From the menu bar, TOP75 switches profiles for each app and turns the lights off on a schedule or when the battery runs low. It also works with macOS Shortcuts and can show your Codex and Claude Code usage limits on the keyboard display. The app runs on macOS 14 or later on Apple Silicon and Intel Macs.
 
 ## Download and install on Mac
 
 Open [**TOP75-macOS.dmg**](https://github.com/kreativecenter/top75-macos/releases/latest/download/TOP75-macOS.dmg) and drag **TOP75.app** to **Applications**. A [ZIP download](https://github.com/kreativecenter/top75-macos/releases/latest/download/TOP75-macOS.zip) is also available.
+
+Or install it with [Homebrew](https://brew.sh):
+
+```sh
+brew install --cask kreativecenter/tap/top75
+```
+
+TOP75 checks GitHub for a new release once a day and shows a download link in the sidebar and the menu bar. The check only asks api.github.com for the latest release. Turn it off in **TOP75 → Settings**. With Homebrew, update with `brew upgrade --cask top75`.
 
 ### Connect over USB
 
@@ -138,7 +146,7 @@ Build the app first. On a Mac with a **Developer ID Application** signing identi
 ./scripts/notarize.sh "Developer ID Application: Your Name (TEAMID)" "top75-notary"
 ```
 
-The script signs with the hardened runtime, waits for Apple's notarization decision, attaches the ticket to the app, and verifies Gatekeeper acceptance before packaging the distribution ZIP and its SHA-256 checksum. Configure the notarization profile locally with `xcrun notarytool store-credentials top75-notary`. To create a drag-to-install disk image from the notarized app, run `./scripts/dmg.sh /path/to/TOP75.app`. See [Apple's notarization guide](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution).
+The script signs with the hardened runtime, waits for Apple's notarization decision, attaches the ticket to the app, and verifies Gatekeeper acceptance before packaging the distribution ZIP and its SHA-256 checksum. Configure the notarization profile locally with `xcrun notarytool store-credentials top75-notary`. To create a drag-to-install disk image from the notarized app, run `./scripts/dmg.sh /path/to/TOP75.app`. After publishing a release, run `./scripts/cask.sh <version>` to point the [Homebrew tap](https://github.com/kreativecenter/homebrew-tap) at the new disk image, then commit and push the tap. See [Apple's notarization guide](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution).
 
 ## Contribute
 

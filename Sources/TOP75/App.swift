@@ -220,6 +220,8 @@ enum Launch {
             try! Verification.verifyArtwork()
             try! Verification.verifyKeyboardTools()
             try! Verification.verifyUsageLimits()
+            try! Verification.verifyUpdateCheck()
+            precondition(english.format("TOP75 %@ indirilebilir", "0.13.0") == "TOP75 0.13.0 is available")
             precondition(english("Tuş testi") == "Key Test")
             precondition(Entry.search("key tester", language: english).first?.destination == .test)
             print("Localization, guide, keyboard tools, USB and Bluetooth HID, macro, restore, and artwork checks passed.")
@@ -239,6 +241,7 @@ struct TOP75App: App {
         LightingScheduler.shared.start()
         BatteryMonitor.shared.start()
         ProfileAutomation.shared.start()
+        UpdateChecker.shared.start()
     }
 
     var body: some Scene {

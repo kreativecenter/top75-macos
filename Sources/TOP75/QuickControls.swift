@@ -39,6 +39,9 @@ struct QuickControls: View {
             Button(language("Otomatik aktarımı durdur")) { UsageDisplay.shared.stopAutomatic() }
         }
         Divider()
+        if let release = UpdateChecker.shared.available {
+            Button(language.format("Güncellemeyi indir (%@)", release.version.description), action: UpdateChecker.shared.openRelease)
+        }
         Button(language("TOP75’i aç")) {
             openWindow(id: "main")
             NSApp.activate(ignoringOtherApps: true)

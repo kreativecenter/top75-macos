@@ -474,3 +474,13 @@
 "%@ kaldı" = "%@ remaining";
 "USB ile seçilen yuvaya aktarılır. Otomatik mod, TOP75 menü çubuğunda açıkken de her 15 dakikada bir kontrol eder." = "Uploads to the selected slot over USB. Automatic mode checks every 15 minutes, including when TOP75 is in the menu bar.";
 "TOP75’i menü çubuğunda bırak" = "Keep TOP75 in the Menu Bar";
+"Güncellemeler" = "Updates";
+"Güncellemeleri otomatik denetle" = "Check for updates automatically";
+"Sürüm %@" = "Version %@";
+"Şimdi denetle" = "Check Now";
+"İndir" = "Download";
+"TOP75 %@ indirilebilir" = "TOP75 %@ is available";
+"Güncelleme denetlenemedi." = "Couldn’t check for updates.";
+"TOP75 güncel." = "TOP75 is up to date.";
+"GitHub’daki son sürümle karşılaştırır." = "Compares with the latest release on GitHub.";
+"Güncellemeyi indir (%@)" = "Download Update (%@)";

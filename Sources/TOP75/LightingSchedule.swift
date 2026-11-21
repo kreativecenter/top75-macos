@@ -248,7 +248,10 @@ final class LightingScheduler {
             saved?.pending = nil
             checked = mode
         }
-        if changed { revision += 1 }
+        if changed {
+            automationLog.info("Lighting restricted for \(String(describing: mode), privacy: .public)")
+            revision += 1
+        }
     }
 
     private func restore(_ previous: SavedLighting) async throws {
@@ -265,7 +268,10 @@ final class LightingScheduler {
         }.value
         if saved == previous { saved = nil }
         checked = nil
-        if changed { revision += 1 }
+        if changed {
+            automationLog.info("Lighting restored to effect \(previous.lighting.effect)")
+            revision += 1
+        }
     }
 
     private func save<T: Encodable>(_ value: T, key: String) {

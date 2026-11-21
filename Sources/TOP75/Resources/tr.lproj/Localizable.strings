@@ -492,3 +492,13 @@
 "%@ kaldı" = "%@ kaldı";
 "USB ile seçilen yuvaya aktarılır. Otomatik mod, TOP75 menü çubuğunda açıkken de her 15 dakikada bir kontrol eder." = "USB ile seçilen yuvaya aktarılır. Otomatik mod, TOP75 menü çubuğunda açıkken de her 15 dakikada bir kontrol eder.";
 "TOP75’i menü çubuğunda bırak" = "TOP75’i menü çubuğunda bırak";
+"Güncellemeler" = "Güncellemeler";
+"Güncellemeleri otomatik denetle" = "Güncellemeleri otomatik denetle";
+"Sürüm %@" = "Sürüm %@";
+"Şimdi denetle" = "Şimdi denetle";
+"İndir" = "İndir";
+"TOP75 %@ indirilebilir" = "TOP75 %@ indirilebilir";
+"Güncelleme denetlenemedi." = "Güncelleme denetlenemedi.";
+"TOP75 güncel." = "TOP75 güncel.";
+"GitHub’daki son sürümle karşılaştırır." = "GitHub’daki son sürümle karşılaştırır.";
+"Güncellemeyi indir (%@)" = "Güncellemeyi indir (%@)";

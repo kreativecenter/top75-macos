@@ -1,14 +1,16 @@
 # Darmoshark TOP75 macOS uygulaması
 
-Darmoshark TOP75 için ücretsiz ve açık kaynak Mac uygulaması. RGB rengini değiştir, tuşları yeniden ata, makro düzenle, ışığın kapanacağı saatleri seç ve klavye ekranına görsel yükle. Apple Silicon ve Intel Mac’lerde macOS 14 ve üzerini destekler.
+Darmoshark TOP75 için ücretsiz ve açık kaynak Mac uygulaması. RGB ışığını değiştir, tuşları yeniden ata ve makro düzenle. Bunların hepsi USB, Bluetooth ve 2,4 GHz alıcıyla çalışır, yani ayar yaparken klavyeyi kablosuz kullanmaya devam edebilirsin. TOP75 menü çubuğunda çalışır. Her uygulama için ayrı profile geçer, ışığı belirlediğin saatlerde ya da pil azalınca kapatır. macOS Kestirmeler’le çalışır ve Codex ile Claude Code kullanım limitlerini klavye ekranında gösterebilir. Apple Silicon ve Intel Mac’lerde macOS 14 ve üzerini destekler.
 
 **[DMG indir](https://github.com/kreativecenter/top75-macos/releases/latest/download/TOP75-macOS.dmg) · [İngilizce README](../README.md) · [Protokol notları](protocol.md)**
 
 ## Başlangıç
 
-1. [**TOP75-macOS.dmg**](https://github.com/kreativecenter/top75-macos/releases/latest/download/TOP75-macOS.dmg) dosyasını aç ve **TOP75.app**’i **Uygulamalar** klasörüne sürükle. [ZIP paketi](https://github.com/kreativecenter/top75-macos/releases/latest/download/TOP75-macOS.zip) de mevcut.
+1. [**TOP75-macOS.dmg**](https://github.com/kreativecenter/top75-macos/releases/latest/download/TOP75-macOS.dmg) dosyasını aç ve **TOP75.app**’i **Uygulamalar** klasörüne sürükle. [ZIP paketi](https://github.com/kreativecenter/top75-macos/releases/latest/download/TOP75-macOS.zip) de mevcut. [Homebrew](https://brew.sh) ile kurmak için: `brew install --cask kreativecenter/tap/top75`.
 2. TOP75’i veri taşıyan bir USB kablosuyla bağla. Mod anahtarını **OFF** konumuna getir ve klavye ekranında **USB** yazdığını kontrol et.
 3. Kenar çubuğunda **USB bağlı** göründüğünde bir panel aç. Mevcut ayarı oku, değiştir ve klavyeye uygula.
+
+TOP75 günde bir kez GitHub’da yeni sürüm olup olmadığına bakar. Varsa kenar çubuğunda ve menü çubuğunda indirme bağlantısı çıkar. Bunun için sadece api.github.com’dan son sürüm bilgisi alınır. Denetimi **TOP75 → Ayarlar**’dan kapatabilirsin. Homebrew ile kurduysan `brew upgrade --cask top75` ile güncelle.
 
 **TOP75 → Ayarlar** (⌘,) menüsünden İngilizce, Türkçe veya sistem dilini seçebilirsin. **⌘F** ile kılavuzda ara ve ilgili paneli aç. USB kurulum adımları için kenar çubuğundaki **Bağlantı yardımı** düğmesini kullan.
 

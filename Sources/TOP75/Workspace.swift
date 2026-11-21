@@ -148,6 +148,7 @@ struct WorkspaceView: View {
     @State private var connectionHelp = 0
     private let transfer = WorkspaceTransfer.shared
     private let battery = BatteryMonitor.shared
+    private let updates = UpdateChecker.shared
     @State private var connected = false
     @State private var bluetoothConnection: KeyboardConnection?
     @State private var connection: KeyboardConnection?
@@ -214,6 +215,11 @@ struct WorkspaceView: View {
                             }
                             .buttonStyle(.link)
                             .font(.caption)
+                        }
+                        if let release = updates.available {
+                            Button(l.format("TOP75 %@ indirilebilir", release.version.description), action: updates.openRelease)
+                                .buttonStyle(.link)
+                                .font(.caption)
                         }
                     }
                     Spacer(minLength: 0)
@@ -359,6 +365,8 @@ struct PreferencesView: View {
     @Environment(\.appLanguage) private var l
     @Binding var preference: LanguagePreference
     @AppStorage("showMenuBar") private var showMenuBar = true
+    @AppStorage("automaticUpdateChecks") private var automaticUpdates = true
+    private let updates = UpdateChecker.shared
 
     var body: some View {
         Form {
@@ -368,9 +376,32 @@ struct PreferencesView: View {
                 Text("Türkçe").tag(LanguagePreference.turkish)
             }
             Toggle(l("Menü çubuğunda göster"), isOn: $showMenuBar)
+            Section(l("Güncellemeler")) {
+                Toggle(l("Güncellemeleri otomatik denetle"), isOn: $automaticUpdates)
+                LabeledContent {
+                    if updates.checking {
+                        ProgressView().controlSize(.small)
+                    } else if updates.available != nil {
+                        Button(l("İndir"), action: updates.openRelease)
+                    } else {
+                        Button(l("Şimdi denetle")) { Task { await updates.check() } }
+                            .disabled(updates.installed == nil)
+                    }
+                } label: {
+                    Text(l.format("Sürüm %@", updates.installed?.description ?? "–"))
+                    Text(l(updateStatus))
+                }
+            }
         }
         .formStyle(.grouped)
-        .frame(width: 400, height: 136)
+        .frame(width: 400, height: 236)
+    }
+
+    private var updateStatus: String {
+        if let release = updates.available { return l.format("TOP75 %@ indirilebilir", release.version.description) }
+        if updates.failed { return "Güncelleme denetlenemedi." }
+        if updates.checkedAt != nil { return "TOP75 güncel." }
+        return "GitHub’daki son sürümle karşılaştırır."
     }
 }
 

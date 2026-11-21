@@ -1,7 +1,10 @@
 import AppKit
 import Observation
+import os
 import UniformTypeIdentifiers
 import SwiftUI
+
+let automationLog = Logger(subsystem: "center.kreative.top75", category: "automation")
 
 @MainActor
 @Observable
@@ -102,6 +105,7 @@ final class ProfileAutomation {
                 }.value
                 profile = result.0
                 status = ""
+                automationLog.info("Profile \(result.0 + 1) active for \(self.lastFrontmost, privacy: .public), changed: \(result.1)")
                 WorkspaceTransfer.shared.finish(id, settingsChanged: result.1)
             } catch {
                 status = error.localizedDescription
